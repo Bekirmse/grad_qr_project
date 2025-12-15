@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "794315754414",
+    "project_id": "barcode-price-scanner",
+    "storage_bucket": "barcode-price-scanner.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:794315754414:android:4c02ff097bf5480550963f",
+        "android_client_info": {
+          "package_name": "com.example.grad_qr_project"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDKkPIH918G-3HVWFG4vzohp4iiiG_rGnA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
