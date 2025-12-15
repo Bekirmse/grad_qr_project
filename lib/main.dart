@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart'; // 1. Firebase Core paketi
 import 'firebase_options.dart'; // 2. CLI ile oluşturulan ayar dosyası
-
+//gg
 import 'package:grad_qr_project/pages/admin/adminDashboard.dart';
 import 'package:grad_qr_project/pages/user/homePage.dart';
 import 'package:grad_qr_project/pages/user/loginPage.dart';
