@@ -64,5 +64,7 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+<string>Ürün fiyatlarını karşılaştırmak ve barkod taramak için kamera izni gereklidir.</string>
 </dict>
 </plist>
