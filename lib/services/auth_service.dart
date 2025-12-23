@@ -5,23 +5,24 @@ class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // 1. KAYIT (Telefonu da kaydediyoruz)
+  // 1. KAYIT (GÜNCELLENDİ: fullName ve phoneNumber alanları)
   Future<String?> registerUser({
-    required String name,
+    required String fullName, // 'name' yerine 'fullName'
     required String email,
     required String password,
-    required String phone,
+    required String phoneNumber, // 'phone' yerine 'phoneNumber'
     String role = 'user',
   }) async {
     try {
       UserCredential userCredential = await _auth
           .createUserWithEmailAndPassword(email: email, password: password);
 
+      // Veritabanına yeni alan isimleriyle kayıt yapıyoruz
       await _firestore.collection('users').doc(userCredential.user!.uid).set({
         'uid': userCredential.user!.uid,
-        'name': name,
+        'fullName': fullName, // Veritabanı alanı güncellendi
         'email': email,
-        'phone': phone,
+        'phoneNumber': phoneNumber, // Veritabanı alanı güncellendi
         'role': role,
         'createdAt': FieldValue.serverTimestamp(),
       });
@@ -33,7 +34,7 @@ class AuthService {
     }
   }
 
-  // 2. GİRİŞ KONTROLÜ (Sadece şifre doğru mu?)
+  // 2. GİRİŞ KONTROLÜ (Değişiklik yok)
   Future<String?> checkCredentials(String email, String password) async {
     try {
       await _auth.signInWithEmailAndPassword(email: email, password: password);
@@ -43,7 +44,7 @@ class AuthService {
     }
   }
 
-  // 3. E-POSTADAN TELEFON BULMA
+  // 3. E-POSTADAN TELEFON BULMA (GÜNCELLENDİ: 'phoneNumber' çekiyoruz)
   Future<String?> getPhoneByEmail(String email) async {
     try {
       var snapshot =
@@ -54,7 +55,8 @@ class AuthService {
               .get();
 
       if (snapshot.docs.isNotEmpty) {
-        return snapshot.docs.first.get('phone');
+        // Artık 'phone' değil 'phoneNumber' alanını okuyoruz
+        return snapshot.docs.first.get('phoneNumber');
       }
       return null;
     } catch (e) {
@@ -62,7 +64,7 @@ class AuthService {
     }
   }
 
-  // 4. SMS GÖNDERME
+  // 4. SMS GÖNDERME (Değişiklik yok)
   Future<void> startPhoneAuth({
     required String phoneNumber,
     required Function(String, int?) onCodeSent,
@@ -79,7 +81,7 @@ class AuthService {
     );
   }
 
-  // 5. KOD DOĞRULAMA VE GİRİŞ (GÜNCELLENMİŞ VERSİYON)
+  // 5. KOD DOĞRULAMA VE GİRİŞ (Değişiklik yok)
   Future<String?> verifyOtpAndLogin({
     required String verificationId,
     required String smsCode,
@@ -90,32 +92,23 @@ class AuthService {
         smsCode: smsCode,
       );
 
-      // Eğer kullanıcı zaten e-posta ile içerideyse (Login senaryosu)
       if (_auth.currentUser != null) {
-        // Telefon numarasını hesaba bağlamayı dene
         await _auth.currentUser!.linkWithCredential(credential);
       } else {
-        // Kullanıcı yoksa direkt telefonla giriş yap
         await _auth.signInWithCredential(credential);
       }
-      return null; // Sorun yok, devam et
+      return null;
     } on FirebaseAuthException catch (e) {
-      // ⚠️ İŞTE ÇÖZÜM BURASI:
-      // Eğer "Bu numara zaten bağlı" (provider-already-linked) hatası gelirse,
-      // bu aslında bir başarıdır. Kullanıcı doğru kodu girmiştir ve hesabı zaten onaylıdır.
-      // Bu yüzden hatayı yutuyoruz ve "null" (başarılı) dönüyoruz.
       if (e.code == 'credential-already-linked' ||
           e.code == 'provider-already-linked' ||
           e.code == 'ERROR_PROVIDER_ALREADY_LINKED') {
         return null;
       }
-
-      // Başka bir numara başka bir kullanıcıya aitse (credential-already-in-use) o gerçek hatadır.
       return e.message;
     }
   }
 
-  // 6. ŞİFRE GÜNCELLEME
+  // 6. ŞİFRE GÜNCELLEME (Değişiklik yok)
   Future<String?> updatePassword(String newPassword) async {
     try {
       await _auth.currentUser?.updatePassword(newPassword);
@@ -125,26 +118,32 @@ class AuthService {
     }
   }
 
-  // 7. ROL ÖĞRENME
+  // 7. ROL ÖĞRENME (GÜNCELLENDİ: 'phoneNumber' sorgusu)
   Future<String> getUserRole() async {
     User? user = _auth.currentUser;
     if (user != null) {
-      // Phone Auth ile giriş yapınca UID değişebilir, o yüzden telefondan buluyoruz
       if (user.phoneNumber != null) {
         var snapshot =
             await _firestore
                 .collection('users')
-                .where('phone', isEqualTo: user.phoneNumber)
+                .where(
+                  'phoneNumber',
+                  isEqualTo: user.phoneNumber,
+                ) // Alan adı güncellendi
                 .limit(1)
                 .get();
         if (snapshot.docs.isNotEmpty) {
           return snapshot.docs.first.get('role') ?? 'user';
         }
       }
-      // Yedek plan (Normal UID kontrolü)
+
       DocumentSnapshot doc =
           await _firestore.collection('users').doc(user.uid).get();
-      if (doc.exists) return doc['role'] ?? 'user';
+      if (doc.exists) {
+        // null safety için kontrol
+        Map<String, dynamic>? data = doc.data() as Map<String, dynamic>?;
+        return data?['role'] ?? 'user';
+      }
     }
     return 'user';
   }
