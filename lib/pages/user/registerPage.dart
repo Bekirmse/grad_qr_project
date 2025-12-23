@@ -14,40 +14,60 @@ class _RegisterPageState extends State<RegisterPage> {
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+
+  // AuthService nesnesi
   final AuthService _authService = AuthService();
+
   bool _isObscure = true;
   bool _isLoading = false;
 
   void _register() async {
+    // 1. Şifre Eşleşme Kontrolü
     if (_passwordController.text != _confirmPasswordController.text) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Passwords do not match')));
       return;
     }
+
     setState(() => _isLoading = true);
 
+    // 2. Telefon Numarası Formatlama
+    // Kullanıcı başında +90 girmediyse biz ekliyoruz.
     String phone = _phoneController.text.trim();
-    if (!phone.startsWith('+')) phone = '+90$phone';
+    if (phone.isNotEmpty && !phone.startsWith('+')) {
+      phone = '+90$phone';
+    }
 
+    // 3. KAYIT İŞLEMİ (GÜNCELLENEN KISIM)
+    // AuthService'deki yeni parametre isimlerini kullanıyoruz:
+    // name -> fullName
+    // phone -> phoneNumber
     String? error = await _authService.registerUser(
-      name: _nameController.text.trim(),
+      fullName: _nameController.text.trim(),
       email: _emailController.text.trim(),
       password: _passwordController.text,
-      phone: phone,
+      phoneNumber: phone,
     );
 
     setState(() => _isLoading = false);
 
+    // 4. Sonuç Kontrolü
     if (error == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Registration Successful! Please Login.')),
-      );
-      Navigator.pop(context);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Registration Successful! Please Login.'),
+          ),
+        );
+        Navigator.pop(context); // Giriş sayfasına geri dön
+      }
     } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error)));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 
@@ -72,6 +92,7 @@ class _RegisterPageState extends State<RegisterPage> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                // İKON
                 Container(
                   alignment: Alignment.center,
                   child: Container(
@@ -89,6 +110,8 @@ class _RegisterPageState extends State<RegisterPage> {
                   ),
                 ),
                 const SizedBox(height: 24),
+
+                // BAŞLIK
                 const Text(
                   'Create Account',
                   textAlign: TextAlign.center,
@@ -107,7 +130,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 ),
                 const SizedBox(height: 32),
 
-                // Inputs
+                // INPUTLAR
                 _buildInput(_nameController, 'Full Name', Icons.person_outline),
                 const SizedBox(height: 16),
                 _buildInput(
@@ -121,8 +144,8 @@ class _RegisterPageState extends State<RegisterPage> {
                   _phoneController,
                   'Phone Number',
                   Icons.phone,
-                  hint: '555 123 45 67',
-                  prefixText: '+90 ',
+                  hint: '533 123 45 67', // Örnek numara formatı
+                  prefixText: '+90 ', // Görsel olarak +90 gösteriyoruz
                   type: TextInputType.phone,
                 ),
                 const SizedBox(height: 16),
@@ -134,6 +157,8 @@ class _RegisterPageState extends State<RegisterPage> {
                 ),
 
                 const SizedBox(height: 32),
+
+                // KAYIT BUTONU
                 ElevatedButton(
                   onPressed: _isLoading ? null : _register,
                   style: ElevatedButton.styleFrom(
@@ -157,6 +182,8 @@ class _RegisterPageState extends State<RegisterPage> {
                           ),
                 ),
                 const SizedBox(height: 24),
+
+                // LOGIN LİNKİ
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -185,6 +212,7 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
+  // Input Yardımcı Widget'ı
   Widget _buildInput(
     TextEditingController controller,
     String label,
@@ -216,6 +244,7 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
+  // Şifre Input Yardımcı Widget'ı
   Widget _buildPasswordInput(TextEditingController controller, String label) {
     return TextField(
       controller: controller,
