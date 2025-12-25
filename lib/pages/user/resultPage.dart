@@ -1,7 +1,51 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-class ResultPage extends StatelessWidget {
+class ResultPage extends StatefulWidget {
+  // Gerçek uygulamada buraya String barcode; String productName; gibi değişkenler gelecek.
+  // Şimdilik tasarımını bozmadan arkada kayıt yapmasını sağlıyoruz.
   const ResultPage({super.key});
+
+  @override
+  State<ResultPage> createState() => _ResultPageState();
+}
+
+class _ResultPageState extends State<ResultPage> {
+  @override
+  void initState() {
+    super.initState();
+    // Sayfa açıldığı an kaydetme işlemini başlat
+    _addToHistory();
+  }
+
+  Future<void> _addToHistory() async {
+    final user = FirebaseAuth.instance.currentUser;
+
+    // Eğer kullanıcı giriş yapmışsa
+    if (user != null) {
+      try {
+        // Şu an ekranda gördüğümüz STATİK verileri veritabanına kaydediyoruz.
+        // İleride burası dinamik olacak (taradığın barkoda göre değişecek).
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .collection('history')
+            .add({
+              'productName': 'Coca Cola 1.5L', // Ekranda yazan isim
+              'barcode': '8690123456789', // Ekranda yazan barkod
+              'category': 'Beverages',
+              'scanDate':
+                  FieldValue.serverTimestamp(), // Tarih (Sıralama için çok önemli)
+              'price': '1.25', // En uygun fiyat
+            });
+
+        debugPrint("Ürün geçmişe başarıyla eklendi.");
+      } catch (e) {
+        debugPrint("Geçmişe eklerken hata oluştu: $e");
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -107,7 +151,14 @@ class ResultPage extends StatelessWidget {
           ],
         ),
         child: ElevatedButton(
-          onPressed: () {},
+          onPressed: () {
+            // Şimdilik sadece SnackBar gösterelim
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text("Shopping List feature coming soon!"),
+              ),
+            );
+          },
           child: const Text('Add to Shopping List'),
         ),
       ),

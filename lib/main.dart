@@ -12,6 +12,9 @@ import 'package:grad_qr_project/pages/user/registerPage.dart';
 import 'package:grad_qr_project/pages/user/resultPage.dart';
 import 'package:grad_qr_project/pages/user/scanPage.dart';
 import 'package:grad_qr_project/pages/user/searchPage.dart';
+import 'package:grad_qr_project/pages/user/editProfilePage.dart';
+import 'package:grad_qr_project/pages/user/settingsPage.dart';
+import 'package:grad_qr_project/pages/user/historyPage.dart';
 
 void main() async {
   // 3. Flutter motorunu hazırla
@@ -107,6 +110,9 @@ class MyApp extends StatelessWidget {
         '/search': (context) => const SearchPage(),
         '/not-found': (context) => const NotFoundPage(),
         '/admin': (context) => const AdminDashboard(),
+        '/edit-profile': (context) => const EditProfilePage(),
+        '/settings': (context) => const SettingsPage(),
+        '/history': (context) => const HistoryPage(),
       },
     );
   }
