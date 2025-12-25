@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'resultPage.dart'; // ResultPage dosyanızın yolu buraya gelecek
 
 class ScanPage extends StatefulWidget {
   const ScanPage({super.key});
@@ -41,151 +42,41 @@ class _ScanPageState extends State<ScanPage>
     super.dispose();
   }
 
-  // Barkod algılandığında çalışacak fonksiyon
+  // GÜNCELLENEN KISIM BURASI:
   void _handleBarcode(BarcodeCapture capture) {
     if (_isScanned) return;
 
     final List<Barcode> barcodes = capture.barcodes;
     for (final barcode in barcodes) {
       if (barcode.rawValue != null) {
+        // Taramayı durdur (tekrar tetiklenmemesi için)
         setState(() {
           _isScanned = true;
         });
 
         final String code = barcode.rawValue!;
-        debugPrint('Barkod Bulundu: $code');
+        debugPrint('Barkod Bulundu ve Yönlendiriliyor: $code');
 
-        // Kullanıcıya sonucu göster
-        showDialog(
-          context: context,
-          barrierDismissible: false, // Prevent closing by clicking outside
-          builder:
-              (context) => AlertDialog(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(
-                    20,
-                  ), // Modern rounded corners
-                ),
-                contentPadding: const EdgeInsets.all(24),
-                content: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Success Icon with subtle background
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.green.withOpacity(0.1),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.qr_code_scanner, // More relevant icon
-                        color: Colors.green,
-                        size: 48,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
+        // ResultPage'e git ve barkodu gönder
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => ResultPage(barcode: code)),
+        ).then((_) {
+          // Geri dönüldüğünde tekrar taramaya izin ver
+          if (mounted) {
+            setState(() {
+              _isScanned = false;
+            });
+          }
+        });
 
-                    // Title
-                    const Text(
-                      "Product Detected",
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-
-                    // Subtitle/Description
-                    const Text(
-                      "The barcode has been successfully scanned.",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.grey, fontSize: 14),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Barcode Container
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade100,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey.shade300),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(
-                            Icons.confirmation_number_outlined,
-                            size: 20,
-                            color: Colors.black54,
-                          ),
-                          const SizedBox(width: 10),
-                          SelectableText(
-                            // Allows user to copy text
-                            code,
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 1.0,
-                              color: Colors.black87,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                actionsAlignment: MainAxisAlignment.center,
-                actionsPadding: const EdgeInsets.only(
-                  bottom: 24,
-                  left: 24,
-                  right: 24,
-                ),
-                actions: [
-                  // Primary Action Button
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        setState(() {
-                          _isScanned = false; // Resume scanning
-                        });
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor:
-                            Colors.black, // Professional dark button
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: const Text(
-                        "Scan Next Item",
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-        );
-        break; // İlk barkodu al ve çık
+        break;
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Ekran boyutunu alıyoruz
     final scanWindowWidth = MediaQuery.of(context).size.width * 0.8;
     final scanWindowHeight = 300.0;
 
@@ -197,7 +88,6 @@ class _ScanPageState extends State<ScanPage>
           MobileScanner(
             controller: _controller,
             onDetect: _handleBarcode,
-            // Hata durumunda gösterilecek widget
             errorBuilder: (context, error) {
               return Center(
                 child: Text(
@@ -208,7 +98,7 @@ class _ScanPageState extends State<ScanPage>
             },
           ),
 
-          // 2. KARARTMA VE ÇERÇEVE KATMANI (CustomPainter)
+          // 2. KARARTMA VE ÇERÇEVE KATMANI
           CustomPaint(
             painter: ScannerOverlayPainter(
               scanWindow: Rect.fromCenter(
@@ -227,8 +117,6 @@ class _ScanPageState extends State<ScanPage>
               width: scanWindowWidth,
               height: scanWindowHeight,
               decoration: BoxDecoration(
-                // Sadece sınırları belli olsun diye boş bırakıyoruz,
-                // veya köşe çizgileri eklenebilir.
                 borderRadius: BorderRadius.circular(20),
               ),
               child: ClipRRect(
@@ -239,7 +127,7 @@ class _ScanPageState extends State<ScanPage>
                     return CustomPaint(
                       painter: LaserLinePainter(
                         progress: _animation.value,
-                        color: Colors.redAccent, // Lazer rengi
+                        color: Colors.redAccent,
                       ),
                     );
                   },
@@ -248,7 +136,7 @@ class _ScanPageState extends State<ScanPage>
             ),
           ),
 
-          // 4. ÜST BİLGİ ALANI (Geri Dön ve Başlık)
+          // 4. ÜST BİLGİ ALANI
           Positioned(
             top: 50,
             left: 0,
@@ -274,12 +162,12 @@ class _ScanPageState extends State<ScanPage>
                     ),
                   ),
                 ),
-                const SizedBox(width: 48), // Dengelemek için boşluk
+                const SizedBox(width: 48),
               ],
             ),
           ),
 
-          // 5. ALT KONTROL PANELİ (Flaş ve Kamera Değiştirme)
+          // 5. ALT KONTROL PANELİ
           Positioned(
             bottom: 50,
             left: 0,
@@ -297,7 +185,6 @@ class _ScanPageState extends State<ScanPage>
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Flaş Butonu
                     _buildControlButton(
                       controller: _controller,
                       iconOn: Icons.flash_on,
@@ -306,10 +193,9 @@ class _ScanPageState extends State<ScanPage>
                       isFlash: true,
                     ),
                     const SizedBox(width: 30),
-                    // Kamera Değiştir Butonu
                     _buildControlButton(
                       controller: _controller,
-                      iconOn: Icons.cameraswitch_rounded, // Sabit ikon
+                      iconOn: Icons.cameraswitch_rounded,
                       iconOff: Icons.cameraswitch_rounded,
                       onTap: () => _controller.switchCamera(),
                       isFlash: false,
@@ -324,7 +210,6 @@ class _ScanPageState extends State<ScanPage>
     );
   }
 
-  // Kontrol butonları için yardımcı widget
   Widget _buildControlButton({
     required MobileScannerController controller,
     required IconData iconOn,
@@ -344,18 +229,14 @@ class _ScanPageState extends State<ScanPage>
           onPressed: onTap,
           iconSize: 32,
           color: isActive ? Colors.yellow : Colors.white,
-          icon: Icon(
-            isFlash ? (isActive ? iconOn : iconOff) : iconOn,
-          ), // Kamera değişiminde ikon sabit
+          icon: Icon(isFlash ? (isActive ? iconOn : iconOff) : iconOn),
         );
       },
     );
   }
 }
 
-// --- CUSTOM PAINTER SINIFLARI (Görsellik İçin) ---
-
-// 1. Karartma ve Delik Açma (Overlay)
+// --- CUSTOM PAINTER SINIFLARI ---
 class ScannerOverlayPainter extends CustomPainter {
   final Rect scanWindow;
   final double borderRadius;
@@ -364,24 +245,20 @@ class ScannerOverlayPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // 1. Tüm ekranı yarı saydam siyah yap
     final backgroundPath =
         Path()..addRect(Rect.fromLTWH(0, 0, size.width, size.height));
 
-    // 2. Ortadaki tarama alanını (Scan Window) tanımla
     final cutoutPath =
         Path()..addRRect(
           RRect.fromRectAndRadius(scanWindow, Radius.circular(borderRadius)),
         );
 
-    // 3. Arka plandan orta alanı çıkar (Delik aç)
     final backgroundPaint =
         Paint()
           ..color = Colors.black.withOpacity(0.6)
           ..style = PaintingStyle.fill
           ..blendMode = BlendMode.srcOver;
 
-    // Path.combine ile delik açma işlemi
     final path = Path.combine(
       PathOperation.difference,
       backgroundPath,
@@ -390,14 +267,12 @@ class ScannerOverlayPainter extends CustomPainter {
 
     canvas.drawPath(path, backgroundPaint);
 
-    // 4. Çerçevenin kenarlarına beyaz/renkli çizgiler çiz (Opsiyonel: Köşeler)
     final borderPaint =
         Paint()
           ..color = Colors.white
           ..style = PaintingStyle.stroke
           ..strokeWidth = 3.0;
 
-    // Sadece köşeleri çizmek için (basit tam çerçeve yerine)
     _drawCorners(canvas, scanWindow, borderPaint);
   }
 
@@ -406,7 +281,6 @@ class ScannerOverlayPainter extends CustomPainter {
     // Sol Üst
     canvas.drawLine(rect.topLeft, rect.topLeft + Offset(0, cornerSize), paint);
     canvas.drawLine(rect.topLeft, rect.topLeft + Offset(cornerSize, 0), paint);
-
     // Sağ Üst
     canvas.drawLine(
       rect.topRight,
@@ -418,7 +292,6 @@ class ScannerOverlayPainter extends CustomPainter {
       rect.topRight - Offset(cornerSize, 0),
       paint,
     );
-
     // Sol Alt
     canvas.drawLine(
       rect.bottomLeft,
@@ -430,7 +303,6 @@ class ScannerOverlayPainter extends CustomPainter {
       rect.bottomLeft + Offset(cornerSize, 0),
       paint,
     );
-
     // Sağ Alt
     canvas.drawLine(
       rect.bottomRight,
@@ -448,7 +320,6 @@ class ScannerOverlayPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-// 2. Hareket Eden Lazer Çizgisi
 class LaserLinePainter extends CustomPainter {
   final double progress;
   final Color color;
@@ -463,7 +334,6 @@ class LaserLinePainter extends CustomPainter {
           ..strokeWidth = 2.0
           ..style = PaintingStyle.stroke;
 
-    // Efekt için gölge (Shadow) ekle
     final shadowPaint =
         Paint()
           ..color = color.withOpacity(0.5)
@@ -472,9 +342,7 @@ class LaserLinePainter extends CustomPainter {
 
     final yPos = size.height * progress;
 
-    // Gölgeyi çiz
     canvas.drawLine(Offset(0, yPos), Offset(size.width, yPos), shadowPaint);
-    // Ana çizgiyi çiz
     canvas.drawLine(Offset(0, yPos), Offset(size.width, yPos), paint);
   }
 

@@ -17,13 +17,10 @@ import 'package:grad_qr_project/pages/user/settingsPage.dart';
 import 'package:grad_qr_project/pages/user/historyPage.dart';
 
 void main() async {
-  // 3. Flutter motorunu hazırla
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 4. Firebase'i başlat
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // 5. Konsola log bas
   if (kDebugMode) {
     print('-------------------------------------------');
   }
@@ -99,13 +96,13 @@ class MyApp extends StatelessWidget {
           labelStyle: const TextStyle(color: Colors.grey),
         ),
       ),
-      initialRoute: '/login',
+      initialRoute: '/home',
       routes: {
         '/login': (context) => const LoginPage(),
         '/register': (context) => const RegisterPage(),
         '/home': (context) => const HomePage(),
         '/scan': (context) => const ScanPage(),
-        '/result': (context) => const ResultPage(),
+        '/result': (context) => const ResultPage(barcode: ''),
         '/profile': (context) => const ProfilePage(),
         '/search': (context) => const SearchPage(),
         '/not-found': (context) => const NotFoundPage(),
