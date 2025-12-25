@@ -56,7 +56,7 @@ class _HomePageState extends State<HomePage> {
         elevation: 0,
         automaticallyImplyLeading: false,
         title: const Text(
-          'PriceScanner',
+          'ScanWiser',
           style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold),
         ),
         actions: [

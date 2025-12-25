@@ -24,10 +24,7 @@ class _ResultPageState extends State<ResultPage> {
   void initState() {
     super.initState();
     if (kDebugMode) {
-      print("🔴 DEBUG: ResultPage başlatıldı.");
-    }
-    if (kDebugMode) {
-      print("🔴 DEBUG: Gelen ham barkod verisi: '${widget.barcode}'");
+      print("🔴 DEBUG: ResultPage başlatıldı: ${widget.barcode}");
     }
     _fetchData();
   }
@@ -36,51 +33,29 @@ class _ResultPageState extends State<ResultPage> {
     setState(() => _isLoading = true);
 
     String cleanBarcode = widget.barcode.trim();
-    if (kDebugMode) {
-      print("🔴 DEBUG: Temizlenmiş barkod ile sorgu başlıyor: '$cleanBarcode'");
-    }
 
     try {
       // 1. ÜRÜN SORGUSU
-      if (kDebugMode) {
-        print("🔴 DEBUG: Adım 1 - Products koleksiyonunda doküman aranıyor...");
-      }
-
       DocumentSnapshot productDoc =
           await FirebaseFirestore.instance
               .collection('products')
               .doc(cleanBarcode)
               .get();
 
+      // --- NAVİGASYON MANTIĞI (ScanPage ile uyumlu) ---
       if (!productDoc.exists) {
         if (kDebugMode) {
-          print(
-            "🔴 DEBUG: HATA! '$cleanBarcode' ID'li doküman products içinde bulunamadı!",
-          );
+          print("🔴 DEBUG: Ürün bulunamadı. 'not_found' sinyali gönderiliyor.");
         }
         if (mounted) {
-          setState(() {
-            _errorMessage =
-                "Ürün veritabanında bulunamadı!\nAranan ID: $cleanBarcode";
-            _isLoading = false;
-          });
+          // Sayfayı kapat ve 'not_found' döndür (ScanPage bunu yakalayacak)
+          Navigator.pop(context, 'not_found');
         }
         return;
-      } else {
-        if (kDebugMode) {
-          print(
-            "🔴 DEBUG: BAŞARILI! Ürün dokümanı bulundu. Data: ${productDoc.data()}",
-          );
-        }
       }
+      // ------------------------------------------------
 
-      // 2. FİYAT SORGUSU
-      if (kDebugMode) {
-        print(
-          "🔴 DEBUG: Adım 2 - Prices koleksiyonunda 'productBarcode' = '$cleanBarcode' aranıyor...",
-        );
-      }
-
+      // 2. FİYAT SORGUSU (En ucuzdan pahalıya sıralı)
       QuerySnapshot priceSnapshot =
           await FirebaseFirestore.instance
               .collection('prices')
@@ -88,13 +63,7 @@ class _ResultPageState extends State<ResultPage> {
               .orderBy('price')
               .get();
 
-      if (kDebugMode) {
-        print(
-          "🔴 DEBUG: Fiyat sorgusu bitti. Bulunan fiyat sayısı: ${priceSnapshot.docs.length}",
-        );
-      }
-
-      // 3. MARKET EŞLEŞTİRME
+      // 3. MARKET BİLGİLERİNİ EŞLEŞTİRME
       List<Map<String, dynamic>> tempPrices = [];
 
       for (var doc in priceSnapshot.docs) {
@@ -113,7 +82,7 @@ class _ResultPageState extends State<ResultPage> {
             priceData['marketName'] = marketData['name'];
             priceData['marketLogoUrl'] = marketData['logoUrl'];
           } else {
-            priceData['marketName'] = "Bilinmeyen Market ($marketId)";
+            priceData['marketName'] = "Unknown Market";
           }
         }
         tempPrices.add(priceData);
@@ -125,13 +94,10 @@ class _ResultPageState extends State<ResultPage> {
           _prices = tempPrices;
           _isLoading = false;
         });
-        if (kDebugMode) {
-          print("🔴 DEBUG: Tüm işlemler tamamlandı, sayfa güncelleniyor.");
-        }
       }
     } catch (e) {
       if (kDebugMode) {
-        print("🔴 DEBUG: KRİTİK HATA OLUŞTU! Hata detayı: $e");
+        print("🔴 DEBUG: HATA: $e");
       }
       if (mounted) {
         setState(() {
@@ -174,12 +140,8 @@ class _ResultPageState extends State<ResultPage> {
                 const SizedBox(height: 16),
                 Text(
                   _errorMessage!,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    color: Colors.red,
-                    fontWeight: FontWeight.bold,
-                  ),
                   textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 16, color: Colors.red),
                 ),
               ],
             ),
@@ -193,7 +155,7 @@ class _ResultPageState extends State<ResultPage> {
       appBar: AppBar(
         title: const Text(
           'Product Details',
-          style: TextStyle(color: Colors.black),
+          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
         backgroundColor: Colors.transparent,
@@ -206,12 +168,14 @@ class _ResultPageState extends State<ResultPage> {
       body: SingleChildScrollView(
         child: Column(
           children: [
+            // --- ÜRÜN BİLGİ KARTI ---
             Container(
               width: double.infinity,
               color: Colors.white,
               padding: const EdgeInsets.all(24),
               child: Column(
                 children: [
+                  // Ürün Resmi
                   Container(
                     height: 150,
                     width: 150,
@@ -238,6 +202,8 @@ class _ResultPageState extends State<ResultPage> {
                             : null,
                   ),
                   const SizedBox(height: 20),
+
+                  // Ürün İsmi
                   Text(
                     _product!['productName'] ?? 'Unknown',
                     textAlign: TextAlign.center,
@@ -248,11 +214,16 @@ class _ResultPageState extends State<ResultPage> {
                     ),
                   ),
                   const SizedBox(height: 8),
+
+                  // Barkod
                   Text(
                     'Barcode: ${widget.barcode}',
                     style: const TextStyle(color: Colors.grey, fontSize: 14),
                   ),
-                  const SizedBox(height: 8),
+
+                  const SizedBox(height: 12),
+
+                  // Kategori Chip
                   if (_product!['category'] != null)
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -274,7 +245,10 @@ class _ResultPageState extends State<ResultPage> {
                 ],
               ),
             ),
+
             const SizedBox(height: 20),
+
+            // --- FİYAT LİSTESİ BAŞLIĞI ---
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Align(
@@ -290,6 +264,8 @@ class _ResultPageState extends State<ResultPage> {
               ),
             ),
             const SizedBox(height: 12),
+
+            // --- FİYAT LİSTESİ ---
             if (_prices != null && _prices!.isNotEmpty)
               ListView.builder(
                 shrinkWrap: true,
@@ -297,23 +273,27 @@ class _ResultPageState extends State<ResultPage> {
                 itemCount: _prices!.length,
                 itemBuilder: (context, index) {
                   final priceData = _prices![index];
+
+                  // Liste fiyata göre sıralı geldiği için ilk eleman (index 0) en ucuzdur.
                   final bool isBestPrice = index == 0;
+
                   return _buildPriceCard(priceData, isBestPrice);
                 },
               )
             else
               const Padding(
                 padding: EdgeInsets.all(20.0),
-                child: Text("Bu ürün için fiyat bilgisi bulunamadı."),
+                child: Text("No prices found for this product."),
               ),
+
             const SizedBox(height: 24),
           ],
         ),
       ),
-      // bottomNavigationBar KISMI BURADAN KALDIRILDI
     );
   }
 
+  // --- GELİŞMİŞ FİYAT KARTI TASARIMI ---
   Widget _buildPriceCard(Map<String, dynamic> priceData, bool isBestPrice) {
     double price = double.tryParse(priceData['price'].toString()) ?? 0.0;
     String currency = priceData['currency'] ?? 'TRY';
@@ -326,6 +306,7 @@ class _ResultPageState extends State<ResultPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
+        // En ucuzsa yeşil çerçeve, değilse şeffaf
         border:
             isBestPrice
                 ? Border.all(color: const Color(0xFF2E7D32), width: 2)
@@ -341,6 +322,7 @@ class _ResultPageState extends State<ResultPage> {
       ),
       child: Row(
         children: [
+          // MARKET LOGOSU
           Container(
             width: 50,
             height: 50,
@@ -352,7 +334,7 @@ class _ResultPageState extends State<ResultPage> {
                   (logoUrl != null && logoUrl.isNotEmpty)
                       ? DecorationImage(
                         image: NetworkImage(logoUrl),
-                        fit: BoxFit.contain,
+                        fit: BoxFit.contain, // Logoyu sığdır
                       )
                       : null,
             ),
@@ -365,7 +347,10 @@ class _ResultPageState extends State<ResultPage> {
                     )
                     : null,
           ),
+
           const SizedBox(width: 16),
+
+          // MARKET ADI VE 'BEST DEAL' ROZETİ
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -378,22 +363,36 @@ class _ResultPageState extends State<ResultPage> {
                   ),
                 ),
                 if (isBestPrice)
-                  const Text(
-                    'Best Deal!',
-                    style: TextStyle(
-                      color: Color(0xFF2E7D32),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
+                  Container(
+                    margin: const EdgeInsets.only(top: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE8F5E9),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Text(
+                      'Best Deal!',
+                      style: TextStyle(
+                        color: Color(0xFF2E7D32),
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
               ],
             ),
           ),
+
+          // FİYAT METNİ
           Text(
             '${price.toStringAsFixed(2)} $currency',
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
+              // En ucuzsa yeşil, değilse siyah
               color: isBestPrice ? const Color(0xFF2E7D32) : Colors.black87,
             ),
           ),

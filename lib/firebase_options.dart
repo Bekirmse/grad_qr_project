@@ -64,11 +64,12 @@ class DefaultFirebaseOptions {
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyC4YMC_d89KGLFyWlDbAnMYiwo-4_lVxzA',
-    appId: '1:794315754414:ios:bde9c1f79f393f8d50963f',
+    apiKey: 'AIzaSyC4YMC_d89KGLFyWlDbAnMYiwo-4_lVxzA', // Aynı kalmış
+    appId:
+        '1:794315754414:ios:c1c80fc7f0ba476450963f', // BU DEĞİŞTİ (Yeni Plist'ten aldım)
     messagingSenderId: '794315754414',
     projectId: 'barcode-price-scanner',
     storageBucket: 'barcode-price-scanner.firebasestorage.app',
-    iosBundleId: 'com.example.gradQrProject',
+    iosBundleId: 'com.bekirmese.scanwiser', // BU DEĞİŞTİ (Yeni isminiz)
   );
 }
