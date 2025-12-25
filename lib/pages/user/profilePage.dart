@@ -53,7 +53,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   // Logout Function
   void _handleLogout() async {
-    await _authService.logout();
+    await _authService.signOut();
     if (mounted) {
       Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
     }
