@@ -5,24 +5,24 @@ class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // 1. KAYIT (GÜNCELLENDİ: fullName ve phoneNumber alanları)
+  // 1. KAYIT
   Future<String?> registerUser({
-    required String fullName, // 'name' yerine 'fullName'
+    required String fullName,
     required String email,
     required String password,
-    required String phoneNumber, // 'phone' yerine 'phoneNumber'
+    required String phoneNumber,
     String role = 'user',
   }) async {
     try {
       UserCredential userCredential = await _auth
           .createUserWithEmailAndPassword(email: email, password: password);
 
-      // Veritabanına yeni alan isimleriyle kayıt yapıyoruz
+      // Veritabanına kayıt
       await _firestore.collection('users').doc(userCredential.user!.uid).set({
         'uid': userCredential.user!.uid,
-        'fullName': fullName, // Veritabanı alanı güncellendi
+        'fullName': fullName,
         'email': email,
-        'phoneNumber': phoneNumber, // Veritabanı alanı güncellendi
+        'phoneNumber': phoneNumber,
         'role': role,
         'createdAt': FieldValue.serverTimestamp(),
       });
@@ -34,7 +34,7 @@ class AuthService {
     }
   }
 
-  // 2. GİRİŞ KONTROLÜ (Değişiklik yok)
+  // 2. GİRİŞ KONTROLÜ
   Future<String?> checkCredentials(String email, String password) async {
     try {
       await _auth.signInWithEmailAndPassword(email: email, password: password);
@@ -44,7 +44,7 @@ class AuthService {
     }
   }
 
-  // 3. E-POSTADAN TELEFON BULMA (GÜNCELLENDİ: 'phoneNumber' çekiyoruz)
+  // 3. E-POSTADAN TELEFON BULMA
   Future<String?> getPhoneByEmail(String email) async {
     try {
       var snapshot =
@@ -55,7 +55,6 @@ class AuthService {
               .get();
 
       if (snapshot.docs.isNotEmpty) {
-        // Artık 'phone' değil 'phoneNumber' alanını okuyoruz
         return snapshot.docs.first.get('phoneNumber');
       }
       return null;
@@ -64,7 +63,7 @@ class AuthService {
     }
   }
 
-  // 4. SMS GÖNDERME (Değişiklik yok)
+  // 4. SMS GÖNDERME
   Future<void> startPhoneAuth({
     required String phoneNumber,
     required Function(String, int?) onCodeSent,
@@ -81,7 +80,7 @@ class AuthService {
     );
   }
 
-  // 5. KOD DOĞRULAMA VE GİRİŞ (Değişiklik yok)
+  // 5. KOD DOĞRULAMA VE GİRİŞ
   Future<String?> verifyOtpAndLogin({
     required String verificationId,
     required String smsCode,
@@ -108,7 +107,7 @@ class AuthService {
     }
   }
 
-  // 6. ŞİFRE GÜNCELLEME (Değişiklik yok)
+  // 6. ŞİFRE GÜNCELLEME
   Future<String?> updatePassword(String newPassword) async {
     try {
       await _auth.currentUser?.updatePassword(newPassword);
@@ -118,7 +117,7 @@ class AuthService {
     }
   }
 
-  // 7. ROL ÖĞRENME (GÜNCELLENDİ: 'phoneNumber' sorgusu)
+  // 7. ROL ÖĞRENME
   Future<String> getUserRole() async {
     User? user = _auth.currentUser;
     if (user != null) {
@@ -126,10 +125,7 @@ class AuthService {
         var snapshot =
             await _firestore
                 .collection('users')
-                .where(
-                  'phoneNumber',
-                  isEqualTo: user.phoneNumber,
-                ) // Alan adı güncellendi
+                .where('phoneNumber', isEqualTo: user.phoneNumber)
                 .limit(1)
                 .get();
         if (snapshot.docs.isNotEmpty) {
@@ -140,7 +136,6 @@ class AuthService {
       DocumentSnapshot doc =
           await _firestore.collection('users').doc(user.uid).get();
       if (doc.exists) {
-        // null safety için kontrol
         Map<String, dynamic>? data = doc.data() as Map<String, dynamic>?;
         return data?['role'] ?? 'user';
       }
@@ -148,7 +143,8 @@ class AuthService {
     return 'user';
   }
 
-  Future<void> logout() async {
+  // 8. ÇIKIŞ YAPMA (İSMİ GÜNCELLENDİ: signOut)
+  Future<void> signOut() async {
     await _auth.signOut();
   }
 }
