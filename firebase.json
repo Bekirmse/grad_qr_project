@@ -1,1 +1,45 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"barcode-price-scanner","appId":"1:794315754414:android:4c02ff097bf5480550963f","fileOutput":"android/app/google-services.json"}},"ios":{"default":{"projectId":"barcode-price-scanner","appId":"1:794315754414:ios:bde9c1f79f393f8d50963f","uploadDebugSymbols":false,"fileOutput":"ios/Runner/GoogleService-Info.plist"}},"dart":{"lib/firebase_options.dart":{"projectId":"barcode-price-scanner","configurations":{"android":"1:794315754414:android:4c02ff097bf5480550963f","ios":"1:794315754414:ios:bde9c1f79f393f8d50963f","web":"1:794315754414:web:30e2eb5b8a0777f050963f"}}}}}}
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "barcode-price-scanner",
+          "appId": "1:794315754414:android:4c02ff097bf5480550963f",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "ios": {
+        "default": {
+          "projectId": "barcode-price-scanner",
+          "appId": "1:794315754414:ios:bde9c1f79f393f8d50963f",
+          "uploadDebugSymbols": false,
+          "fileOutput": "ios/Runner/GoogleService-Info.plist"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "barcode-price-scanner",
+          "configurations": {
+            "android": "1:794315754414:android:4c02ff097bf5480550963f",
+            "ios": "1:794315754414:ios:bde9c1f79f393f8d50963f",
+            "web": "1:794315754414:web:30e2eb5b8a0777f050963f"
+          }
+        }
+      }
+    }
+  },
+  "hosting": {
+    "public": "build/web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  }
+}

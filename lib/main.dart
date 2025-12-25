@@ -22,15 +22,12 @@ void main() async {
   // Firebase Başlatma
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // 2. reCAPTCHA / App Check Entegrasyonu (Gerekli olan kısım)
-  // Bu kod, "recaptcha-sdk-not-linked" hatasını çözer.
-  await FirebaseAppCheck.instance.activate(
-    // Web için reCAPTCHA v3 kullanıyorsanız buraya web key eklenir.
-    // iOS için gerçek cihazda DeviceCheck veya App Attest kullanılır.
-    appleProvider: AppleProvider.deviceCheck,
-    androidProvider: AndroidProvider.debug, // Android testleri için debug
-  );
-
+  if (!kIsWeb) {
+    await FirebaseAppCheck.instance.activate(
+      appleProvider: AppleProvider.deviceCheck,
+      androidProvider: AndroidProvider.debug,
+    );
+  }
   if (kDebugMode) {
     print('-------------------------------------------');
     print('Firebase ve App Check (reCAPTCHA) başarıyla başlatıldı!');
@@ -101,7 +98,7 @@ class MyApp extends StatelessWidget {
           labelStyle: const TextStyle(color: Colors.grey),
         ),
       ),
-      initialRoute: '/login',
+      initialRoute: '/admin',
       routes: {
         '/login': (context) => const LoginPage(),
         '/register': (context) => const RegisterPage(),

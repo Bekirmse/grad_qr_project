@@ -19,6 +19,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
     });
   }
 
+  // _AdminDashboardState sınıfı içindeki build metodunu şu şekilde güncelleyin:
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -26,10 +27,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       body: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 1. LEFT SIDE MENU
           _SideMenu(selectedIndex: _selectedIndex, onMenuClick: _onMenuSelect),
-
-          // 2. RIGHT CONTENT AREA
           Expanded(
             child: Column(
               children: [
@@ -40,9 +38,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _selectedIndex == 0
-                            ? const _DashboardOverview()
-                            : const _AddProductForm(),
+                        // Değişiklik BURADA: Seçili indekse göre widget gösterimi
+                        if (_selectedIndex == 0) const _DashboardOverview(),
+                        if (_selectedIndex == 1) const _AddProductForm(),
+                        if (_selectedIndex == 2) const _UserManagementList(),
                       ],
                     ),
                   ),
@@ -591,6 +590,138 @@ class _DashboardOverview extends StatelessWidget {
   }
 }
 
+// --- 1. USER MANAGEMENT LIST (Kullanıcı Listeleme ve Yönetme) ---
+class _UserManagementList extends StatelessWidget {
+  const _UserManagementList();
+
+  Future<void> _deleteUser(
+    BuildContext context,
+    String uid,
+    String name,
+  ) async {
+    bool confirm = await showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text("Delete User"),
+            content: Text(
+              "Are you sure you want to delete $name? This action cannot be undone.",
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text("Cancel"),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text(
+                  "Delete",
+                  style: TextStyle(color: Colors.red),
+                ),
+              ),
+            ],
+          ),
+    );
+
+    if (confirm) {
+      try {
+        await FirebaseFirestore.instance.collection('users').doc(uid).delete();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("User deleted successfully")),
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Error: $e")));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "Customer Management",
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 20),
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance.collection('users').snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.hasError) return const Text("Something went wrong");
+              if (snapshot.connectionState == ConnectionState.waiting)
+                return const Center(child: CircularProgressIndicator());
+
+              final users = snapshot.data!.docs;
+
+              return ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: users.length,
+                separatorBuilder: (context, index) => const Divider(),
+                itemBuilder: (context, index) {
+                  var user = users[index].data() as Map<String, dynamic>;
+                  String uid = users[index].id;
+                  String name = user['fullName'] ?? user['name'] ?? "User";
+                  String email = user['email'] ?? "No Email";
+
+                  return ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: const Color(0xFFE8F5E9),
+                      child: Text(
+                        name[0].toUpperCase(),
+                        style: const TextStyle(color: Color(0xFF2E7D32)),
+                      ),
+                    ),
+                    title: Text(
+                      name,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    subtitle: Text(email),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Özellik: Doğrulama Durumu
+                        Icon(
+                          user['isVerified'] == true
+                              ? Icons.verified
+                              : Icons.warning_amber_rounded,
+                          color:
+                              user['isVerified'] == true
+                                  ? Colors.blue
+                                  : Colors.orange,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        // Özellik: Hesap Silme
+                        IconButton(
+                          icon: const Icon(
+                            Icons.delete_outline,
+                            color: Colors.red,
+                          ),
+                          onPressed: () => _deleteUser(context, uid, name),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _SideMenu extends StatelessWidget {
   final int selectedIndex;
   final Function(int) onMenuClick;
@@ -626,7 +757,7 @@ class _SideMenu extends StatelessWidget {
                 ),
                 const SizedBox(width: 12),
                 const Text(
-                  'PriceScanner',
+                  'ScanWiser',
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -652,7 +783,8 @@ class _SideMenu extends StatelessWidget {
           _DrawerListTile(
             title: "Users",
             icon: Icons.people_alt_rounded,
-            press: () {},
+            isSelected: selectedIndex == 2, // Seçili olma durumu eklendi
+            press: () => onMenuClick(2), // Tıklama fonksiyonu bağlandı
           ),
           const Spacer(),
           const Divider(),
@@ -755,33 +887,133 @@ class _OverviewSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Column(
       children: [
-        Expanded(
-          child: _StatCard(
-            title: "Total Users",
-            value: "1,234",
-            icon: Icons.people_outline,
-            color: Colors.blue,
-          ),
-        ),
-        const SizedBox(width: 24),
-        Expanded(
-          child: _StatCard(
-            title: "Products",
-            value: "5,678",
-            icon: Icons.inventory_2_outlined,
-            color: Colors.orange,
-          ),
-        ),
-        const SizedBox(width: 24),
-        Expanded(
-          child: _StatCard(
-            title: "Pending",
-            value: "12",
-            icon: Icons.pending_actions,
-            color: Colors.red,
-          ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 1. KULLANICILAR (Sayı + Liste Özeti)
+            Expanded(
+              child: StreamBuilder<QuerySnapshot>(
+                stream:
+                    FirebaseFirestore.instance.collection('users').snapshots(),
+                builder: (context, snapshot) {
+                  final docs = snapshot.data?.docs ?? [];
+                  List<String> names =
+                      docs
+                          .map(
+                            (d) =>
+                                (d.data() as Map<String, dynamic>)['fullName']
+                                    ?.toString() ??
+                                "User",
+                          )
+                          .take(3)
+                          .toList();
+                  return _StatCard(
+                    title: "Total Users",
+                    value: docs.length.toString(),
+                    icon: Icons.people_outline,
+                    color: Colors.blue,
+                    items: names,
+                    hasMore: docs.length > 3,
+                  );
+                },
+              ),
+            ),
+            const SizedBox(width: 16),
+
+            // 2. ÜRÜNLER (Sayı + Liste Özeti)
+            Expanded(
+              child: StreamBuilder<QuerySnapshot>(
+                stream:
+                    FirebaseFirestore.instance
+                        .collection('products')
+                        .snapshots(),
+                builder: (context, snapshot) {
+                  final docs = snapshot.data?.docs ?? [];
+                  List<String> names =
+                      docs
+                          .map(
+                            (d) =>
+                                (d.data()
+                                        as Map<String, dynamic>)['productName']
+                                    ?.toString() ??
+                                "Product",
+                          )
+                          .take(3)
+                          .toList();
+                  return _StatCard(
+                    title: "Total Products",
+                    value: docs.length.toString(),
+                    icon: Icons.inventory_2_outlined,
+                    color: Colors.orange,
+                    items: names,
+                    hasMore: docs.length > 3,
+                  );
+                },
+              ),
+            ),
+            const SizedBox(width: 16),
+
+            // 3. MARKETLER (Tüm Market İsimleri)
+            Expanded(
+              child: StreamBuilder<QuerySnapshot>(
+                stream:
+                    FirebaseFirestore.instance
+                        .collection('supermarkets')
+                        .snapshots(),
+                builder: (context, snapshot) {
+                  final docs = snapshot.data?.docs ?? [];
+                  List<String> names =
+                      docs
+                          .map(
+                            (d) =>
+                                (d.data() as Map<String, dynamic>)['name']
+                                    ?.toString() ??
+                                "Market",
+                          )
+                          .toList();
+                  return _StatCard(
+                    title: "Active Markets",
+                    value: docs.length.toString(),
+                    icon: Icons.store_mall_directory_outlined,
+                    color: Colors.green,
+                    items: names,
+                  );
+                },
+              ),
+            ),
+            const SizedBox(width: 16),
+
+            // 4. KATEGORİLER (Tüm Kategori İsimleri)
+            Expanded(
+              child: StreamBuilder<QuerySnapshot>(
+                stream:
+                    FirebaseFirestore.instance
+                        .collection('categories')
+                        .snapshots(),
+                builder: (context, snapshot) {
+                  final docs = snapshot.data?.docs ?? [];
+                  List<String> names =
+                      docs
+                          .map(
+                            (d) =>
+                                (d.data() as Map<String, dynamic>)['name']
+                                    ?.toString() ??
+                                "Category",
+                          )
+                          .toList();
+                  return _StatCard(
+                    title: "Categories",
+                    value: docs.length.toString(),
+                    icon: Icons.category_outlined,
+                    color: Colors.purple,
+                    items: names,
+                  );
+                },
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -793,40 +1025,99 @@ class _StatCard extends StatelessWidget {
   final String value;
   final IconData icon;
   final Color color;
+  final List<String> items; // İsim listesi eklendi
+  final bool hasMore;
 
   const _StatCard({
     required this.title,
     required this.value,
     required this.icon,
     required this.color,
+    this.items = const [],
+    this.hasMore = false,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(
-            // ignore: deprecated_member_use
-            color: Colors.grey.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
+          BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: color, size: 30),
-          const SizedBox(height: 16),
-          Text(
-            value,
-            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Icon(icon, color: color, size: 28),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
           ),
-          Text(title, style: TextStyle(fontSize: 14, color: Colors.grey[600])),
+          const SizedBox(height: 12),
+          Text(
+            title,
+            style: TextStyle(
+              color: Colors.grey[600],
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const Divider(height: 24),
+
+          // İsimlerin Listelendiği Alan
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              ...items.map(
+                (name) => Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: color.withOpacity(0.1)),
+                  ),
+                  child: Text(
+                    name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: color,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ),
+              if (hasMore)
+                Text(
+                  "...",
+                  style: TextStyle(color: color, fontWeight: FontWeight.bold),
+                ),
+            ],
+          ),
+          if (items.isEmpty)
+            const Text(
+              "No data yet",
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
         ],
       ),
     );
