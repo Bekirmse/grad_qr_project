@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import '../models/product_model.dart';
 import '../models/price_model.dart';
 import '../models/supermarket_model.dart';
@@ -22,7 +23,9 @@ class ProductService {
       }
       return null;
     } catch (e) {
-      print("Ürün çekme hatası: $e");
+      if (kDebugMode) {
+        print("Ürün çekme hatası: $e");
+      }
       return null;
     }
   }
@@ -70,7 +73,9 @@ class ProductService {
 
       return pricesList;
     } catch (e) {
-      print("Fiyat listesi hatası: $e");
+      if (kDebugMode) {
+        print("Fiyat listesi hatası: $e");
+      }
       return [];
     }
   }

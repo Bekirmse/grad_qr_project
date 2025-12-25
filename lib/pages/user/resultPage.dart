@@ -1,7 +1,8 @@
+// ignore_for_file: file_names
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import '../../models/product_model.dart';
-import '../../models/price_model.dart';
-import '../../services/product_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ResultPage extends StatefulWidget {
   final String barcode;
@@ -13,53 +14,136 @@ class ResultPage extends StatefulWidget {
 }
 
 class _ResultPageState extends State<ResultPage> {
-  final ProductService _productService = ProductService();
+  Map<String, dynamic>? _product;
+  List<Map<String, dynamic>>? _prices;
 
-  Product? _product;
-  List<Price>? _prices;
   bool _isLoading = true;
   String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
+    if (kDebugMode) {
+      print("🔴 DEBUG: ResultPage başlatıldı.");
+    }
+    if (kDebugMode) {
+      print("🔴 DEBUG: Gelen ham barkod verisi: '${widget.barcode}'");
+    }
     _fetchData();
   }
 
   Future<void> _fetchData() async {
     setState(() => _isLoading = true);
 
-    // 1. Ürün bilgisini çek
-    Product? product = await _productService.getProduct(widget.barcode);
+    String cleanBarcode = widget.barcode.trim();
+    if (kDebugMode) {
+      print("🔴 DEBUG: Temizlenmiş barkod ile sorgu başlıyor: '$cleanBarcode'");
+    }
 
-    if (product == null) {
+    try {
+      // 1. ÜRÜN SORGUSU
+      if (kDebugMode) {
+        print("🔴 DEBUG: Adım 1 - Products koleksiyonunda doküman aranıyor...");
+      }
+
+      DocumentSnapshot productDoc =
+          await FirebaseFirestore.instance
+              .collection('products')
+              .doc(cleanBarcode)
+              .get();
+
+      if (!productDoc.exists) {
+        if (kDebugMode) {
+          print(
+            "🔴 DEBUG: HATA! '$cleanBarcode' ID'li doküman products içinde bulunamadı!",
+          );
+        }
+        if (mounted) {
+          setState(() {
+            _errorMessage =
+                "Ürün veritabanında bulunamadı!\nAranan ID: $cleanBarcode";
+            _isLoading = false;
+          });
+        }
+        return;
+      } else {
+        if (kDebugMode) {
+          print(
+            "🔴 DEBUG: BAŞARILI! Ürün dokümanı bulundu. Data: ${productDoc.data()}",
+          );
+        }
+      }
+
+      // 2. FİYAT SORGUSU
+      if (kDebugMode) {
+        print(
+          "🔴 DEBUG: Adım 2 - Prices koleksiyonunda 'productBarcode' = '$cleanBarcode' aranıyor...",
+        );
+      }
+
+      QuerySnapshot priceSnapshot =
+          await FirebaseFirestore.instance
+              .collection('prices')
+              .where('productBarcode', isEqualTo: cleanBarcode)
+              .orderBy('price')
+              .get();
+
+      if (kDebugMode) {
+        print(
+          "🔴 DEBUG: Fiyat sorgusu bitti. Bulunan fiyat sayısı: ${priceSnapshot.docs.length}",
+        );
+      }
+
+      // 3. MARKET EŞLEŞTİRME
+      List<Map<String, dynamic>> tempPrices = [];
+
+      for (var doc in priceSnapshot.docs) {
+        var priceData = doc.data() as Map<String, dynamic>;
+        String marketId = priceData['marketId'] ?? '';
+
+        if (marketId.isNotEmpty) {
+          var marketDoc =
+              await FirebaseFirestore.instance
+                  .collection('supermarkets')
+                  .doc(marketId)
+                  .get();
+
+          if (marketDoc.exists) {
+            var marketData = marketDoc.data() as Map<String, dynamic>;
+            priceData['marketName'] = marketData['name'];
+            priceData['marketLogoUrl'] = marketData['logoUrl'];
+          } else {
+            priceData['marketName'] = "Bilinmeyen Market ($marketId)";
+          }
+        }
+        tempPrices.add(priceData);
+      }
+
       if (mounted) {
         setState(() {
-          // GÜNCELLENEN KISIM: Barkod numarasını mesajın içine ekledik (\n ile alt satıra geçtik)
-          _errorMessage = "Ürün bulunamadı!\nBarkod: ${widget.barcode}";
+          _product = productDoc.data() as Map<String, dynamic>;
+          _prices = tempPrices;
+          _isLoading = false;
+        });
+        if (kDebugMode) {
+          print("🔴 DEBUG: Tüm işlemler tamamlandı, sayfa güncelleniyor.");
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print("🔴 DEBUG: KRİTİK HATA OLUŞTU! Hata detayı: $e");
+      }
+      if (mounted) {
+        setState(() {
+          _errorMessage = "Sistem hatası: $e";
           _isLoading = false;
         });
       }
-      return;
-    }
-
-    // 2. Fiyatları çek
-    List<Price> prices = await _productService.getPricesForProduct(
-      widget.barcode,
-    );
-
-    if (mounted) {
-      setState(() {
-        _product = product;
-        _prices = prices;
-        _isLoading = false;
-      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Yükleniyor durumu
     if (_isLoading) {
       return const Scaffold(
         backgroundColor: Color(0xFFF5F5F5),
@@ -69,7 +153,6 @@ class _ResultPageState extends State<ResultPage> {
       );
     }
 
-    // Hata durumu
     if (_errorMessage != null) {
       return Scaffold(
         backgroundColor: const Color(0xFFF5F5F5),
@@ -91,8 +174,12 @@ class _ResultPageState extends State<ResultPage> {
                 const SizedBox(height: 16),
                 Text(
                   _errorMessage!,
-                  style: const TextStyle(fontSize: 18, color: Colors.grey),
-                  textAlign: TextAlign.center, // Metni ortaladık
+                  style: const TextStyle(
+                    fontSize: 16,
+                    color: Colors.red,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
               ],
             ),
@@ -101,7 +188,6 @@ class _ResultPageState extends State<ResultPage> {
       );
     }
 
-    // Başarılı durum (Sizin Tasarımınız)
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
@@ -126,24 +212,24 @@ class _ResultPageState extends State<ResultPage> {
               padding: const EdgeInsets.all(24),
               child: Column(
                 children: [
-                  // Ürün Resmi Alanı
                   Container(
                     height: 150,
                     width: 150,
                     decoration: BoxDecoration(
                       color: Colors.grey[100],
                       borderRadius: BorderRadius.circular(20),
-                      // Resim varsa göster, yoksa ikon göster
                       image:
-                          _product!.imageUrl.isNotEmpty
+                          (_product!['imageUrl'] != null &&
+                                  _product!['imageUrl'].toString().isNotEmpty)
                               ? DecorationImage(
-                                image: NetworkImage(_product!.imageUrl),
+                                image: NetworkImage(_product!['imageUrl']),
                                 fit: BoxFit.contain,
                               )
                               : null,
                     ),
                     child:
-                        _product!.imageUrl.isEmpty
+                        (_product!['imageUrl'] == null ||
+                                _product!['imageUrl'].toString().isEmpty)
                             ? const Icon(
                               Icons.shopping_bag,
                               size: 80,
@@ -152,10 +238,8 @@ class _ResultPageState extends State<ResultPage> {
                             : null,
                   ),
                   const SizedBox(height: 20),
-
-                  // Ürün İsmi
                   Text(
-                    _product!.productName,
+                    _product!['productName'] ?? 'Unknown',
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       fontSize: 24,
@@ -164,16 +248,12 @@ class _ResultPageState extends State<ResultPage> {
                     ),
                   ),
                   const SizedBox(height: 8),
-
-                  // Barkod
                   Text(
-                    'Barcode: ${_product!.barcode}',
+                    'Barcode: ${widget.barcode}',
                     style: const TextStyle(color: Colors.grey, fontSize: 14),
                   ),
                   const SizedBox(height: 8),
-
-                  // Kategori Etiketi
-                  if (_product!.category.isNotEmpty)
+                  if (_product!['category'] != null)
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 12,
@@ -184,7 +264,7 @@ class _ResultPageState extends State<ResultPage> {
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
-                        _product!.category,
+                        _product!['category'],
                         style: const TextStyle(
                           color: Color(0xFF2E7D32),
                           fontWeight: FontWeight.w600,
@@ -195,8 +275,6 @@ class _ResultPageState extends State<ResultPage> {
               ),
             ),
             const SizedBox(height: 20),
-
-            // Başlık: Fiyat Karşılaştırma
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Align(
@@ -212,19 +290,14 @@ class _ResultPageState extends State<ResultPage> {
               ),
             ),
             const SizedBox(height: 12),
-
-            // Dinamik Fiyat Listesi
             if (_prices != null && _prices!.isNotEmpty)
               ListView.builder(
-                shrinkWrap: true, // ScrollView içinde olduğu için gerekli
-                physics:
-                    const NeverScrollableScrollPhysics(), // Ana scroll çalışsın diye
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
                 itemCount: _prices!.length,
                 itemBuilder: (context, index) {
                   final priceData = _prices![index];
-                  // Listeyi zaten ucuzdan pahalıya sıralamıştık, ilk eleman en ucuzdur.
                   final bool isBestPrice = index == 0;
-
                   return _buildPriceCard(priceData, isBestPrice);
                 },
               )
@@ -233,53 +306,20 @@ class _ResultPageState extends State<ResultPage> {
                 padding: EdgeInsets.all(20.0),
                 child: Text("Bu ürün için fiyat bilgisi bulunamadı."),
               ),
-
             const SizedBox(height: 24),
           ],
         ),
       ),
-
-      // Alt Buton
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, -5),
-            ),
-          ],
-        ),
-        child: ElevatedButton(
-          onPressed: () {
-            // Sepete ekleme işlemi buraya gelecek
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text("Shopping list feature coming soon!"),
-              ),
-            );
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF2E7D32),
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-          child: const Text(
-            'Add to Shopping List',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-        ),
-      ),
+      // bottomNavigationBar KISMI BURADAN KALDIRILDI
     );
   }
 
-  // Fiyat Kartı Widget'ı (Veri Modelini Alacak Şekilde Güncellendi)
-  Widget _buildPriceCard(Price priceData, bool isBestPrice) {
+  Widget _buildPriceCard(Map<String, dynamic> priceData, bool isBestPrice) {
+    double price = double.tryParse(priceData['price'].toString()) ?? 0.0;
+    String currency = priceData['currency'] ?? 'TRY';
+    String marketName = priceData['marketName'] ?? 'Unknown Market';
+    String? logoUrl = priceData['marketLogoUrl'];
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
       padding: const EdgeInsets.all(16),
@@ -292,6 +332,7 @@ class _ResultPageState extends State<ResultPage> {
                 : Border.all(color: Colors.transparent),
         boxShadow: [
           BoxShadow(
+            // ignore: deprecated_member_use
             color: Colors.grey.withOpacity(0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
@@ -300,7 +341,6 @@ class _ResultPageState extends State<ResultPage> {
       ),
       child: Row(
         children: [
-          // Market Logosu Alanı
           Container(
             width: 50,
             height: 50,
@@ -309,18 +349,15 @@ class _ResultPageState extends State<ResultPage> {
               color: isBestPrice ? const Color(0xFFE8F5E9) : Colors.grey[100],
               shape: BoxShape.circle,
               image:
-                  (priceData.marketLogoUrl != null &&
-                          priceData.marketLogoUrl!.isNotEmpty)
+                  (logoUrl != null && logoUrl.isNotEmpty)
                       ? DecorationImage(
-                        image: NetworkImage(priceData.marketLogoUrl!),
-                        fit: BoxFit.cover,
+                        image: NetworkImage(logoUrl),
+                        fit: BoxFit.contain,
                       )
                       : null,
             ),
-            // Logo yoksa ikon göster
             child:
-                (priceData.marketLogoUrl == null ||
-                        priceData.marketLogoUrl!.isEmpty)
+                (logoUrl == null || logoUrl.isEmpty)
                     ? Icon(
                       Icons.store_mall_directory_rounded,
                       color:
@@ -329,14 +366,12 @@ class _ResultPageState extends State<ResultPage> {
                     : null,
           ),
           const SizedBox(width: 16),
-
-          // Market İsmi ve Etiket
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  priceData.marketName ?? "Unknown Market",
+                  marketName,
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
@@ -354,10 +389,8 @@ class _ResultPageState extends State<ResultPage> {
               ],
             ),
           ),
-
-          // Fiyat
           Text(
-            '${priceData.price.toStringAsFixed(2)} ${priceData.currency}',
+            '${price.toStringAsFixed(2)} $currency',
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,

@@ -14,7 +14,6 @@ import 'package:grad_qr_project/pages/user/scanPage.dart';
 import 'package:grad_qr_project/pages/user/searchPage.dart';
 import 'package:grad_qr_project/pages/user/editProfilePage.dart';
 import 'package:grad_qr_project/pages/user/settingsPage.dart';
-import 'package:grad_qr_project/pages/user/historyPage.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -109,7 +108,6 @@ class MyApp extends StatelessWidget {
         '/admin': (context) => const AdminDashboard(),
         '/edit-profile': (context) => const EditProfilePage(),
         '/settings': (context) => const SettingsPage(),
-        '/history': (context) => const HistoryPage(),
       },
     );
   }
