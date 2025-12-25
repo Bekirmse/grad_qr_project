@@ -1,3 +1,5 @@
+// ignore_for_file: file_names
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -284,6 +286,7 @@ class _AddProductFormState extends State<_AddProductForm> {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
+              // ignore: deprecated_member_use
               color: Colors.grey.withOpacity(0.05),
               blurRadius: 10,
               offset: const Offset(0, 4),
@@ -720,6 +723,7 @@ class _Header extends StatelessWidget {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
+            // ignore: deprecated_member_use
             color: Colors.grey.withOpacity(0.05),
             offset: const Offset(0, 4),
             blurRadius: 10,
@@ -806,6 +810,7 @@ class _StatCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
+            // ignore: deprecated_member_use
             color: Colors.grey.withOpacity(0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),

@@ -1,6 +1,12 @@
+// ignore: duplicate_ignore
+// ignore: file_names
+// ignore_for_file: file_names
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:grad_qr_project/pages/user/resultPage.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -12,10 +18,8 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   final User? user = FirebaseAuth.instance.currentUser;
   final TextEditingController _searchController = TextEditingController();
-
   String _selectedCategory = "All";
 
-  // Kullanıcı Adını Çekme
   Future<String> _fetchUserName() async {
     if (user == null) return "Guest";
     try {
@@ -28,89 +32,69 @@ class _HomePageState extends State<HomePage> {
         return doc.get('fullName') ?? "User";
       }
     } catch (e) {
-      print("Error fetching name: $e");
+      if (kDebugMode) {
+        print("Error: $e");
+      }
     }
     return user?.email?.split('@')[0] ?? "User";
   }
 
-  // Alt Menü Mantığı
   void _onItemTapped(int index) {
-    if (index == 0) {
-      // Zaten Home'dayız
-    } else if (index == 1) {
+    if (index == 1) {
       Navigator.pushNamed(context, '/scan');
-    } else if (index == 2) {
+    } else if (index == 2)
+      // ignore: curly_braces_in_flow_control_structures
       Navigator.pushNamed(context, '/profile');
-    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
-
-      // --- APP BAR ---
       appBar: AppBar(
         backgroundColor: const Color(0xFFF8F9FA),
         elevation: 0,
         automaticallyImplyLeading: false,
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: const [
-            SizedBox(width: 8),
-            Text(
-              'PriceScanner',
-              style: TextStyle(
-                color: Colors.black87,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
+        title: const Text(
+          'PriceScanner',
+          style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold),
         ),
         actions: [
-          // YENİ EKLENEN: BİLDİRİM İKONU
           IconButton(
-            onPressed: () {
-              // Bildirimler sayfasına git
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const NotificationPage(),
+            onPressed:
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const NotificationPage(),
+                  ),
                 ),
-              );
-            },
             icon: const Icon(
               Icons.notifications_none_rounded,
-              color: Colors.black87, // Rengi daha belirgin yaptık
+              color: Colors.black87,
               size: 28,
             ),
-            tooltip: "Notifications",
           ),
         ],
       ),
-
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // --- USER CARD ---
+            // KULLANICI KARTI
             FutureBuilder<String>(
               future: _fetchUserName(),
               builder: (context, snapshot) {
-                String displayName = snapshot.data ?? "Loading...";
-
                 return Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
                       colors: [Color(0xFF2E7D32), Color(0xFF66BB6A)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
                     ),
                     borderRadius: BorderRadius.circular(24),
                     boxShadow: [
                       BoxShadow(
+                        // ignore: deprecated_member_use
                         color: const Color(0xFF2E7D32).withOpacity(0.3),
                         blurRadius: 20,
                         offset: const Offset(0, 10),
@@ -124,13 +108,12 @@ class _HomePageState extends State<HomePage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Hello, $displayName!',
+                              'Hello, ${snapshot.data ?? "Loading..."}!',
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 22,
                                 fontWeight: FontWeight.bold,
                               ),
-                              overflow: TextOverflow.ellipsis,
                             ),
                             const SizedBox(height: 8),
                             const Text(
@@ -146,11 +129,12 @@ class _HomePageState extends State<HomePage> {
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
+                          // ignore: deprecated_member_use
                           color: Colors.white.withOpacity(0.2),
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(
-                          Icons.qr_code,
+                          Icons.person,
                           size: 32,
                           color: Colors.white,
                         ),
@@ -160,10 +144,9 @@ class _HomePageState extends State<HomePage> {
                 );
               },
             ),
-
             const SizedBox(height: 24),
 
-            // --- CATEGORY LIST (CANLI) ---
+            // KATEGORİLER
             SizedBox(
               height: 40,
               child: StreamBuilder<QuerySnapshot>(
@@ -173,27 +156,22 @@ class _HomePageState extends State<HomePage> {
                         .orderBy('name')
                         .snapshots(),
                 builder: (context, snapshot) {
-                  List<String> displayCategories = ["All"];
-
-                  if (snapshot.hasData) {
-                    for (var doc in snapshot.data!.docs) {
-                      displayCategories.add(doc['name']);
+                  List<String> cats = ["All"];
+                  if (snapshot.hasData)
+                    // ignore: curly_braces_in_flow_control_structures
+                    for (var d in snapshot.data!.docs) {
+                      cats.add(d['name']);
                     }
-                  }
 
                   return ListView.builder(
                     scrollDirection: Axis.horizontal,
-                    itemCount: displayCategories.length,
+                    itemCount: cats.length,
                     itemBuilder: (context, index) {
-                      final category = displayCategories[index];
+                      final category = cats[index];
                       final isSelected = _selectedCategory == category;
-
                       return GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _selectedCategory = category;
-                          });
-                        },
+                        onTap:
+                            () => setState(() => _selectedCategory = category),
                         child: Container(
                           margin: const EdgeInsets.only(right: 10),
                           padding: const EdgeInsets.symmetric(
@@ -212,18 +190,6 @@ class _HomePageState extends State<HomePage> {
                                       ? const Color(0xFF2E7D32)
                                       : Colors.grey.shade300,
                             ),
-                            boxShadow:
-                                isSelected
-                                    ? [
-                                      BoxShadow(
-                                        color: const Color(
-                                          0xFF2E7D32,
-                                        ).withOpacity(0.3),
-                                        blurRadius: 8,
-                                        offset: const Offset(0, 4),
-                                      ),
-                                    ]
-                                    : [],
                           ),
                           child: Center(
                             child: Text(
@@ -244,10 +210,9 @@ class _HomePageState extends State<HomePage> {
                 },
               ),
             ),
-
             const SizedBox(height: 16),
 
-            // --- SEARCH BAR ---
+            // ARAMA ÇUBUĞU
             Container(
               decoration: BoxDecoration(
                 color: Colors.white,
@@ -262,12 +227,9 @@ class _HomePageState extends State<HomePage> {
               ),
               child: TextField(
                 controller: _searchController,
-                onChanged: (value) {
-                  setState(() {});
-                },
+                onChanged: (v) => setState(() {}),
                 decoration: InputDecoration(
                   hintText: "Search in $_selectedCategory...",
-                  hintStyle: TextStyle(color: Colors.grey[400]),
                   prefixIcon: const Icon(
                     Icons.search,
                     color: Color(0xFF2E7D32),
@@ -275,13 +237,11 @@ class _HomePageState extends State<HomePage> {
                   suffixIcon:
                       _searchController.text.isNotEmpty
                           ? IconButton(
-                            icon: const Icon(Icons.clear, color: Colors.grey),
-                            onPressed: () {
-                              _searchController.clear();
-                              setState(() {});
-                            },
+                            icon: const Icon(Icons.clear),
+                            onPressed:
+                                () => setState(() => _searchController.clear()),
                           )
-                          : const Icon(Icons.tune, color: Colors.grey),
+                          : null,
                   border: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 20,
@@ -290,30 +250,24 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
             ),
-
             const SizedBox(height: 24),
 
-            // --- POPULAR PRODUCTS ---
+            // POPÜLER ÜRÜNLER
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text(
                   'Popular Products',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 TextButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const AllProductsPage(),
+                  onPressed:
+                      () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const AllProductsPage(),
+                        ),
                       ),
-                    );
-                  },
                   child: const Text(
                     'View All',
                     style: TextStyle(
@@ -326,7 +280,7 @@ class _HomePageState extends State<HomePage> {
             ),
             const SizedBox(height: 10),
 
-            // --- PRODUCT LIST (FILTERED) ---
+            // ÜRÜN LİSTESİ
             StreamBuilder<QuerySnapshot>(
               stream:
                   _selectedCategory == "All"
@@ -340,48 +294,23 @@ class _HomePageState extends State<HomePage> {
                           .limit(5)
                           .snapshots(),
               builder: (context, snapshot) {
-                if (snapshot.hasError) return const Text('An error occurred');
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
-
-                var docs = snapshot.data!.docs;
-
-                if (_searchController.text.isNotEmpty) {
-                  docs =
-                      docs.where((doc) {
-                        var data = doc.data() as Map<String, dynamic>;
-                        String name =
-                            (data['productName'] ?? '')
-                                .toString()
-                                .toLowerCase();
-                        return name.contains(
-                          _searchController.text.toLowerCase(),
-                        );
-                      }).toList();
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return const Center(child: Text("No products found."));
                 }
 
-                if (docs.isEmpty) {
-                  return Container(
-                    padding: const EdgeInsets.all(20),
-                    alignment: Alignment.center,
-                    child: Column(
-                      children: [
-                        const Icon(
-                          Icons.search_off,
-                          size: 50,
-                          color: Colors.grey,
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          _selectedCategory == "All"
-                              ? "No products found."
-                              : "No products in $_selectedCategory.",
-                          style: const TextStyle(color: Colors.grey),
-                        ),
-                      ],
-                    ),
-                  );
+                var docs = snapshot.data!.docs;
+                if (_searchController.text.isNotEmpty) {
+                  docs =
+                      docs.where((d) {
+                        var data = d.data() as Map<String, dynamic>;
+                        return (data['productName'] ?? '')
+                            .toString()
+                            .toLowerCase()
+                            .contains(_searchController.text.toLowerCase());
+                      }).toList();
                 }
 
                 return ListView.builder(
@@ -389,102 +318,14 @@ class _HomePageState extends State<HomePage> {
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: docs.length,
                   itemBuilder: (context, index) {
-                    var product = docs[index].data() as Map<String, dynamic>;
+                    var data = docs[index].data() as Map<String, dynamic>;
 
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.grey.shade100,
-                            blurRadius: 5,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 60,
-                            height: 60,
-                            decoration: BoxDecoration(
-                              color: Colors.grey.shade50,
-                              borderRadius: BorderRadius.circular(12),
-                              image:
-                                  (product['imageUrl'] != null &&
-                                          product['imageUrl']
-                                              .toString()
-                                              .isNotEmpty)
-                                      ? DecorationImage(
-                                        image: NetworkImage(
-                                          product['imageUrl'],
-                                        ),
-                                        fit: BoxFit.contain,
-                                      )
-                                      : null,
-                            ),
-                            child:
-                                (product['imageUrl'] == null ||
-                                        product['imageUrl'].toString().isEmpty)
-                                    ? const Icon(
-                                      Icons.image_not_supported,
-                                      color: Colors.grey,
-                                    )
-                                    : null,
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  product['productName'] ?? 'Unnamed Product',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 15,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 2,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey.shade100,
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: Text(
-                                    product['category'] ?? 'General',
-                                    style: TextStyle(
-                                      color: Colors.grey[700],
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          IconButton(
-                            icon: const Icon(
-                              Icons.chevron_right,
-                              color: Color(0xFF2E7D32),
-                            ),
-                            onPressed: () {
-                              Navigator.pushNamed(
-                                context,
-                                '/result',
-                                arguments: product['barcode'],
-                              );
-                            },
-                          ),
-                        ],
-                      ),
-                    );
+                    // --- KRİTİK NOKTA: DOKÜMAN ID'SİNİ KULLANIYORUZ ---
+                    // Eğer veritabanında 'barcode' alanı boş bile olsa, ID asla boş olamaz.
+                    // Senin veritabanında ID zaten barkod numarasıdır.
+                    String realID = docs[index].id;
+
+                    return ProductCard(data: data, barcode: realID);
                   },
                 );
               },
@@ -492,14 +333,11 @@ class _HomePageState extends State<HomePage> {
           ],
         ),
       ),
-
-      // --- BOTTOM NAVIGATION (FIXED) ---
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: 0,
         onTap: _onItemTapped,
         selectedItemColor: const Color(0xFF2E7D32),
-        unselectedItemColor: Colors.grey,
-        showUnselectedLabels: true,
+        type: BottomNavigationBarType.fixed,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home_filled), label: 'Home'),
           BottomNavigationBarItem(
@@ -516,7 +354,108 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
-// --- GÜNCELLENMİŞ VE YEŞİL TEMALI BİLDİRİM SAYFASI ---
+// --- ÜRÜN KARTI WIDGET'I (Ana Sayfa İçin) ---
+class ProductCard extends StatelessWidget {
+  final Map<String, dynamic> data;
+  final String barcode;
+
+  const ProductCard({super.key, required this.data, required this.barcode});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.shade100,
+            blurRadius: 5,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(12),
+              image:
+                  (data['imageUrl'] != null &&
+                          data['imageUrl'].toString().isNotEmpty)
+                      ? DecorationImage(
+                        image: NetworkImage(data['imageUrl']),
+                        fit: BoxFit.contain,
+                      )
+                      : null,
+            ),
+            child:
+                (data['imageUrl'] == null ||
+                        data['imageUrl'].toString().isEmpty)
+                    ? const Icon(Icons.image_not_supported, color: Colors.grey)
+                    : null,
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  data['productName'] ?? 'Unnamed',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    data['category'] ?? 'General',
+                    style: TextStyle(
+                      color: Colors.grey[700],
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.chevron_right, color: Color(0xFF2E7D32)),
+            onPressed: () {
+              // --- DÜZELTİLDİ: Doğrudan ID'yi sayfaya gönderiyoruz ---
+              if (kDebugMode) {
+                print("Seçilen Ürün ID: $barcode");
+              } // Kontrol için log
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ResultPage(barcode: barcode),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// --- GÜNCELLENMİŞ PREMIUM BİLDİRİM SAYFASI ---
 class NotificationPage extends StatelessWidget {
   const NotificationPage({super.key});
 
@@ -530,7 +469,7 @@ class NotificationPage extends StatelessWidget {
           style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
-        backgroundColor: Colors.transparent, // Şeffaf/Beyaz modern görünüm
+        backgroundColor: Colors.transparent, // Modern şeffaf görünüm
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black),
@@ -552,31 +491,32 @@ class NotificationPage extends StatelessWidget {
             );
           }
 
-          // 2. Veri Yok Durumu
+          // 2. Veri Yok Durumu (Şık bir boş ekran tasarımı)
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(20),
+                    padding: const EdgeInsets.all(25),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFE8F5E9), // Açık yeşil daire
+                      // ignore: deprecated_member_use
+                      color: const Color(0xFFE8F5E9).withOpacity(0.5),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(
                       Icons.notifications_off_outlined,
                       size: 60,
-                      color: Color(0xFF2E7D32), // Koyu yeşil ikon
+                      color: Color(0xFF2E7D32),
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 20),
                   const Text(
                     "No notifications yet",
                     style: TextStyle(
-                      color: Colors.grey,
+                      color: Colors.black87,
                       fontSize: 18,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -603,8 +543,9 @@ class NotificationPage extends StatelessWidget {
               String time = "";
               if (ts != null) {
                 DateTime date = ts.toDate();
+                // Örn: 25/12/2025 • 14:30
                 time =
-                    "${date.day}/${date.month}/${date.year} • ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}";
+                    "${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} • ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}";
               }
 
               return Container(
@@ -614,20 +555,21 @@ class NotificationPage extends StatelessWidget {
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.grey.withOpacity(0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
+                      // ignore: deprecated_member_use
+                      color: Colors.grey.withOpacity(0.06),
+                      blurRadius: 15,
+                      offset: const Offset(0, 5),
                     ),
                   ],
                 ),
                 child: ListTile(
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 16,
-                    vertical: 8,
+                    vertical: 12,
                   ),
-                  // Sol taraftaki ikon (Yeşil Temalı)
+                  // Sol taraftaki ikon (Yeşil Temalı Daire)
                   leading: Container(
-                    padding: const EdgeInsets.all(10),
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: const Color(0xFFE8F5E9), // Açık yeşil arka plan
                       shape: BoxShape.circle,
@@ -651,7 +593,7 @@ class NotificationPage extends StatelessWidget {
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 6),
                       Text(
                         notification['body'] ?? '',
                         style: TextStyle(
@@ -660,25 +602,27 @@ class NotificationPage extends StatelessWidget {
                           height: 1.3,
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.access_time,
-                            size: 12,
-                            color: Colors.grey,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            time,
-                            style: const TextStyle(
-                              fontSize: 12,
+                      const SizedBox(height: 10),
+                      // Tarih Gösterimi (Küçük ve gri)
+                      if (time.isNotEmpty)
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.access_time,
+                              size: 14,
                               color: Colors.grey,
-                              fontWeight: FontWeight.w500,
                             ),
-                          ),
-                        ],
-                      ),
+                            const SizedBox(width: 4),
+                            Text(
+                              time,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
                     ],
                   ),
                 ),
@@ -691,15 +635,9 @@ class NotificationPage extends StatelessWidget {
   }
 }
 
-// --- ALL PRODUCTS PAGE ---
-class AllProductsPage extends StatefulWidget {
+// --- TÜM ÜRÜNLER SAYFASI (All Products) ---
+class AllProductsPage extends StatelessWidget {
   const AllProductsPage({super.key});
-
-  @override
-  State<AllProductsPage> createState() => _AllProductsPageState();
-}
-
-class _AllProductsPageState extends State<AllProductsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -710,76 +648,24 @@ class _AllProductsPageState extends State<AllProductsPage> {
           style: TextStyle(color: Colors.black),
         ),
         backgroundColor: Colors.white,
-        elevation: 0,
         iconTheme: const IconThemeData(color: Colors.black),
+        elevation: 0,
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance.collection('products').snapshots(),
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
+          if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(child: Text("No products found."));
-          }
-
-          var docs = snapshot.data!.docs;
-
           return ListView.builder(
             padding: const EdgeInsets.all(16),
-            itemCount: docs.length,
+            itemCount: snapshot.data!.docs.length,
             itemBuilder: (context, index) {
-              var product = docs[index].data() as Map<String, dynamic>;
-              return Card(
-                margin: const EdgeInsets.only(bottom: 12),
-                elevation: 2,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: ListTile(
-                  contentPadding: const EdgeInsets.all(12),
-                  leading: Container(
-                    width: 60,
-                    height: 60,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
-                      image:
-                          (product['imageUrl'] != null &&
-                                  product['imageUrl'].toString().isNotEmpty)
-                              ? DecorationImage(
-                                image: NetworkImage(product['imageUrl']),
-                                fit: BoxFit.contain,
-                              )
-                              : null,
-                    ),
-                    child:
-                        (product['imageUrl'] == null ||
-                                product['imageUrl'].toString().isEmpty)
-                            ? const Icon(Icons.image, color: Colors.grey)
-                            : null,
-                  ),
-                  title: Text(
-                    product['productName'] ?? 'Unnamed',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  subtitle: Text(product['category'] ?? '-'),
-                  onTap: null,
-                  trailing: IconButton(
-                    icon: const Icon(
-                      Icons.arrow_forward_ios,
-                      size: 16,
-                      color: Colors.grey,
-                    ),
-                    onPressed: () {
-                      Navigator.pushNamed(
-                        context,
-                        '/result',
-                        arguments: product['barcode'],
-                      );
-                    },
-                  ),
-                ),
-              );
+              var doc = snapshot.data!.docs[index];
+              var data = doc.data() as Map<String, dynamic>;
+
+              // --- BURASI DA DÜZELTİLDİ: Sadece doc.id kullanılıyor ---
+              return ProductCard(data: data, barcode: doc.id);
             },
           );
         },
