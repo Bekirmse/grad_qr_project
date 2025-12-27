@@ -24,6 +24,7 @@ class AuthService {
         'email': email,
         'phoneNumber': phoneNumber,
         'role': role,
+        'isVerified': false, // <--- EKLENDİ: Başlangıçta doğrulanmamış olsun
         'createdAt': FieldValue.serverTimestamp(),
       });
       return null;
@@ -80,7 +81,7 @@ class AuthService {
     );
   }
 
-  // 5. KOD DOĞRULAMA VE GİRİŞ
+  // 5. KOD DOĞRULAMA VE GİRİŞ (GÜNCELLENDİ)
   Future<String?> verifyOtpAndLogin({
     required String verificationId,
     required String smsCode,
@@ -91,16 +92,38 @@ class AuthService {
         smsCode: smsCode,
       );
 
+      UserCredential? userCredential;
+
+      // Kullanıcı zaten email ile oturum açmış durumda mı? (LoginPage'deki akışa göre evet)
       if (_auth.currentUser != null) {
-        await _auth.currentUser!.linkWithCredential(credential);
+        userCredential = await _auth.currentUser!.linkWithCredential(
+          credential,
+        );
       } else {
-        await _auth.signInWithCredential(credential);
+        userCredential = await _auth.signInWithCredential(credential);
       }
+
+      // --- EKLENDİ: DOĞRULAMA BAŞARILI OLUNCA 'isVerified' TRUE YAPILMALI ---
+      if (userCredential.user != null) {
+        await _firestore
+            .collection('users')
+            .doc(userCredential.user!.uid)
+            .update({'isVerified': true});
+      }
+      // -----------------------------------------------------------------------
+
       return null;
     } on FirebaseAuthException catch (e) {
       if (e.code == 'credential-already-linked' ||
           e.code == 'provider-already-linked' ||
           e.code == 'ERROR_PROVIDER_ALREADY_LINKED') {
+        // Zaten linklenmişse bile garanti olsun diye true yapalım
+        if (_auth.currentUser != null) {
+          await _firestore
+              .collection('users')
+              .doc(_auth.currentUser!.uid)
+              .update({'isVerified': true});
+        }
         return null;
       }
       return e.message;
@@ -121,18 +144,7 @@ class AuthService {
   Future<String> getUserRole() async {
     User? user = _auth.currentUser;
     if (user != null) {
-      if (user.phoneNumber != null) {
-        var snapshot =
-            await _firestore
-                .collection('users')
-                .where('phoneNumber', isEqualTo: user.phoneNumber)
-                .limit(1)
-                .get();
-        if (snapshot.docs.isNotEmpty) {
-          return snapshot.docs.first.get('role') ?? 'user';
-        }
-      }
-
+      // Önce Firestore'dan çekmeye çalışalım
       DocumentSnapshot doc =
           await _firestore.collection('users').doc(user.uid).get();
       if (doc.exists) {
@@ -143,7 +155,7 @@ class AuthService {
     return 'user';
   }
 
-  // 8. ÇIKIŞ YAPMA (İSMİ GÜNCELLENDİ: signOut)
+  // 8. ÇIKIŞ YAPMA
   Future<void> signOut() async {
     await _auth.signOut();
   }

@@ -9,7 +9,7 @@
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.example.gradQrProject</string>
+	<string>com.bekirmese.scanwiser</string>
 	<key>PROJECT_ID</key>
 	<string>barcode-price-scanner</string>
 	<key>STORAGE_BUCKET</key>
@@ -25,6 +25,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:794315754414:ios:bde9c1f79f393f8d50963f</string>
+	<string>1:794315754414:ios:c1c80fc7f0ba476450963f</string>
 </dict>
 </plist>

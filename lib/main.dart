@@ -1,10 +1,12 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart'; // 1. Firebase Core paketi
-import 'firebase_options.dart'; // 2. CLI ile oluşturulan ayar dosyası
-//gg
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_app_check/firebase_app_check.dart'; // 1. App Check paketini ekledik
+import 'package:grad_qr_project/pages/user/reset_password_page.dart';
+import 'firebase_options.dart';
+
 import 'package:grad_qr_project/pages/admin/adminDashboard.dart';
-import 'package:grad_qr_project/pages/user/homePage.dart';
+import 'package:grad_qr_project/pages/user/homePage.dart' as home_page;
 import 'package:grad_qr_project/pages/user/loginPage.dart';
 import 'package:grad_qr_project/pages/user/notFoundPage.dart';
 import 'package:grad_qr_project/pages/user/profilePage.dart';
@@ -13,21 +15,22 @@ import 'package:grad_qr_project/pages/user/resultPage.dart';
 import 'package:grad_qr_project/pages/user/scanPage.dart';
 import 'package:grad_qr_project/pages/user/searchPage.dart';
 import 'package:grad_qr_project/pages/user/editProfilePage.dart';
-import 'package:grad_qr_project/pages/user/settingsPage.dart';
-import 'package:grad_qr_project/pages/user/historyPage.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Firebase Başlatma
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
+  if (!kIsWeb) {
+    await FirebaseAppCheck.instance.activate(
+      appleProvider: AppleProvider.deviceCheck,
+      androidProvider: AndroidProvider.debug,
+    );
+  }
   if (kDebugMode) {
     print('-------------------------------------------');
-  }
-  if (kDebugMode) {
-    print('Firebase başarıyla başlatıldı!');
-  }
-  if (kDebugMode) {
+    print('Firebase ve App Check (reCAPTCHA) başarıyla başlatıldı!');
     print('-------------------------------------------');
   }
 
@@ -73,7 +76,6 @@ class MyApp extends StatelessWidget {
               fontWeight: FontWeight.bold,
             ),
             elevation: 2,
-            // ignore: deprecated_member_use
             shadowColor: const Color(0xFF2E7D32).withOpacity(0.4),
           ),
         ),
@@ -96,11 +98,11 @@ class MyApp extends StatelessWidget {
           labelStyle: const TextStyle(color: Colors.grey),
         ),
       ),
-      initialRoute: '/home',
+      initialRoute: '/login',
       routes: {
         '/login': (context) => const LoginPage(),
         '/register': (context) => const RegisterPage(),
-        '/home': (context) => const HomePage(),
+        '/home': (context) => const home_page.HomePage(),
         '/scan': (context) => const ScanPage(),
         '/result': (context) => const ResultPage(barcode: ''),
         '/profile': (context) => const ProfilePage(),
@@ -108,8 +110,7 @@ class MyApp extends StatelessWidget {
         '/not-found': (context) => const NotFoundPage(),
         '/admin': (context) => const AdminDashboard(),
         '/edit-profile': (context) => const EditProfilePage(),
-        '/settings': (context) => const SettingsPage(),
-        '/history': (context) => const HistoryPage(),
+        '/change-password': (context) => const ResetPasswordPage(),
       },
     );
   }

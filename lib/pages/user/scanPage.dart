@@ -1,6 +1,10 @@
+// ignore_for_file: file_names, deprecated_member_use
+
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import 'resultPage.dart'; // ResultPage dosyanızın yolu buraya gelecek
+import 'package:cloud_firestore/cloud_firestore.dart'; // EKLENDİ
+import 'resultPage.dart';
+import 'notFoundPage.dart';
 
 class ScanPage extends StatefulWidget {
   const ScanPage({super.key});
@@ -11,20 +15,19 @@ class ScanPage extends StatefulWidget {
 
 class _ScanPageState extends State<ScanPage>
     with SingleTickerProviderStateMixin {
-  // Kamera kontrolcüsü
-  final MobileScannerController _controller = MobileScannerController();
+  final MobileScannerController _controller = MobileScannerController(
+    detectionSpeed: DetectionSpeed.noDuplicates,
+    returnImage: false,
+    formats: [BarcodeFormat.ean13, BarcodeFormat.ean8, BarcodeFormat.qrCode],
+  );
 
-  // Animasyon kontrolcüsü (Lazer çizgisi için)
   late AnimationController _animationController;
   late Animation<double> _animation;
-
-  // Barkod okunduktan sonra tekrar tekrar tetiklenmemesi için kontrol
-  bool _isScanned = false;
+  bool _isProcessing = false;
 
   @override
   void initState() {
     super.initState();
-    // Lazer animasyonu ayarları (2 saniyede inip çıkacak)
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 2),
@@ -42,41 +45,88 @@ class _ScanPageState extends State<ScanPage>
     super.dispose();
   }
 
-  // GÜNCELLENEN KISIM BURASI:
-  void _handleBarcode(BarcodeCapture capture) {
-    if (_isScanned) return;
+  // --- AKIŞKAN GEÇİŞ İÇİN ÖZEL ROTA (Fade Effect) ---
+  Route _createRoute(Widget page) {
+    return PageRouteBuilder(
+      pageBuilder: (context, animation, secondaryAnimation) => page,
+      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+        return FadeTransition(opacity: animation, child: child);
+      },
+      transitionDuration: const Duration(
+        milliseconds: 300,
+      ), // Yumuşak geçiş hızı
+    );
+  }
+
+  void _handleBarcode(BarcodeCapture capture) async {
+    if (_isProcessing) return;
 
     final List<Barcode> barcodes = capture.barcodes;
+    String? scannedCode;
+
     for (final barcode in barcodes) {
       if (barcode.rawValue != null) {
-        // Taramayı durdur (tekrar tetiklenmemesi için)
-        setState(() {
-          _isScanned = true;
-        });
+        scannedCode = barcode.rawValue!;
+        break;
+      }
+    }
 
-        final String code = barcode.rawValue!;
-        debugPrint('Barkod Bulundu ve Yönlendiriliyor: $code');
+    if (scannedCode != null) {
+      // 1. Kilidi Kapat ve UI güncelle
+      _isProcessing = true;
+      if (mounted) setState(() {});
 
-        // ResultPage'e git ve barkodu gönder
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => ResultPage(barcode: code)),
-        ).then((_) {
-          // Geri dönüldüğünde tekrar taramaya izin ver
+      debugPrint('Barkod Okundu: $scannedCode');
+
+      try {
+        // 2. Kamerayı Durdur
+        await _controller.stop();
+
+        // 3. --- PRE-CHECK (ÖN KONTROL) ---
+        // Sayfa değiştirmeden önce veritabanına burada bakıyoruz.
+        // Bu sayede "Git-Gel" titremesi engelleniyor.
+        var doc =
+            await FirebaseFirestore.instance
+                .collection('products')
+                .doc(scannedCode)
+                .get();
+
+        if (!mounted) return;
+
+        if (doc.exists) {
+          // Ürün VARSA -> ResultPage'e git
+          await Navigator.push(
+            context,
+            _createRoute(ResultPage(barcode: scannedCode)),
+          );
+        } else {
+          // Ürün YOKSA -> Direkt NotFoundPage'e git
+          // ResultPage hiç açılmaz, titreme olmaz.
+          await Navigator.push(context, _createRoute(const NotFoundPage()));
+        }
+      } catch (e) {
+        debugPrint("Hata: $e");
+      } finally {
+        // 4. Geri dönüldüğünde (Sayfalar kapandığında)
+        if (mounted) {
+          debugPrint("Tarama ekranına dönüldü, kamera hazırlanıyor...");
+          // Kullanıcı elini çekebilsin diye bekleme süresi
+          await Future.delayed(const Duration(milliseconds: 1000));
+
           if (mounted) {
+            await _controller.start();
             setState(() {
-              _isScanned = false;
+              _isProcessing = false;
             });
           }
-        });
-
-        break;
+        }
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    // Tasarım kodları aynı
     final scanWindowWidth = MediaQuery.of(context).size.width * 0.8;
     final scanWindowHeight = 300.0;
 
@@ -84,21 +134,17 @@ class _ScanPageState extends State<ScanPage>
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // 1. KAMERA KATMANI
           MobileScanner(
             controller: _controller,
             onDetect: _handleBarcode,
-            errorBuilder: (context, error) {
-              return Center(
-                child: Text(
-                  'Kamera hatası: $error',
-                  style: const TextStyle(color: Colors.white),
+            errorBuilder:
+                (context, error) => const Center(
+                  child: Text(
+                    "Kamera Hatası",
+                    style: TextStyle(color: Colors.white),
+                  ),
                 ),
-              );
-            },
           ),
-
-          // 2. KARARTMA VE ÇERÇEVE KATMANI
           CustomPaint(
             painter: ScannerOverlayPainter(
               scanWindow: Rect.fromCenter(
@@ -110,8 +156,6 @@ class _ScanPageState extends State<ScanPage>
             ),
             child: Container(),
           ),
-
-          // 3. LAZER ANİMASYONU
           Center(
             child: Container(
               width: scanWindowWidth,
@@ -127,7 +171,8 @@ class _ScanPageState extends State<ScanPage>
                     return CustomPaint(
                       painter: LaserLinePainter(
                         progress: _animation.value,
-                        color: Colors.redAccent,
+                        // İşlem sırasındaysa SARI, değilse KIRMIZI (Yeşil yerine Sarı kullandım, 'Bekleyin' anlamında)
+                        color: _isProcessing ? Colors.amber : Colors.redAccent,
                       ),
                     );
                   },
@@ -135,8 +180,20 @@ class _ScanPageState extends State<ScanPage>
               ),
             ),
           ),
+          // SİYAH PERDE YERİNE SADECE LOADING
+          // Ekranın tamamını karartmak yerine ortada şık bir loading gösterelim
+          if (_isProcessing)
+            Container(
+              color: Colors.black54, // Hafif karartma
+              child: const Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [CircularProgressIndicator(color: Colors.green)],
+                ),
+              ),
+            ),
 
-          // 4. ÜST BİLGİ ALANI
+          // ÜST BAR
           Positioned(
             top: 50,
             left: 0,
@@ -152,13 +209,12 @@ class _ScanPageState extends State<ScanPage>
                 ),
                 const Expanded(
                   child: Text(
-                    "Barkodu Hizalayın",
+                    "Scan Barcode",
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      shadows: [Shadow(blurRadius: 4, color: Colors.black)],
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
@@ -166,8 +222,7 @@ class _ScanPageState extends State<ScanPage>
               ],
             ),
           ),
-
-          // 5. ALT KONTROL PANELİ
+          // ALT KONTROLLER
           Positioned(
             bottom: 50,
             left: 0,
@@ -220,11 +275,7 @@ class _ScanPageState extends State<ScanPage>
     return ValueListenableBuilder(
       valueListenable: controller,
       builder: (context, state, child) {
-        bool isActive = false;
-        if (isFlash) {
-          isActive = state.torchState == TorchState.on;
-        }
-
+        bool isActive = isFlash ? state.torchState == TorchState.on : false;
         return IconButton(
           onPressed: onTap,
           iconSize: 32,
@@ -236,52 +287,42 @@ class _ScanPageState extends State<ScanPage>
   }
 }
 
-// --- CUSTOM PAINTER SINIFLARI ---
+// CustomPainter Sınıfları (Aynı)
 class ScannerOverlayPainter extends CustomPainter {
   final Rect scanWindow;
   final double borderRadius;
-
   ScannerOverlayPainter({required this.scanWindow, required this.borderRadius});
-
   @override
   void paint(Canvas canvas, Size size) {
     final backgroundPath =
         Path()..addRect(Rect.fromLTWH(0, 0, size.width, size.height));
-
     final cutoutPath =
         Path()..addRRect(
           RRect.fromRectAndRadius(scanWindow, Radius.circular(borderRadius)),
         );
-
     final backgroundPaint =
         Paint()
           ..color = Colors.black.withOpacity(0.6)
           ..style = PaintingStyle.fill
           ..blendMode = BlendMode.srcOver;
-
     final path = Path.combine(
       PathOperation.difference,
       backgroundPath,
       cutoutPath,
     );
-
     canvas.drawPath(path, backgroundPaint);
-
     final borderPaint =
         Paint()
           ..color = Colors.white
           ..style = PaintingStyle.stroke
           ..strokeWidth = 3.0;
-
     _drawCorners(canvas, scanWindow, borderPaint);
   }
 
   void _drawCorners(Canvas canvas, Rect rect, Paint paint) {
     double cornerSize = 30.0;
-    // Sol Üst
     canvas.drawLine(rect.topLeft, rect.topLeft + Offset(0, cornerSize), paint);
     canvas.drawLine(rect.topLeft, rect.topLeft + Offset(cornerSize, 0), paint);
-    // Sağ Üst
     canvas.drawLine(
       rect.topRight,
       rect.topRight + Offset(0, cornerSize),
@@ -292,7 +333,6 @@ class ScannerOverlayPainter extends CustomPainter {
       rect.topRight - Offset(cornerSize, 0),
       paint,
     );
-    // Sol Alt
     canvas.drawLine(
       rect.bottomLeft,
       rect.bottomLeft - Offset(0, cornerSize),
@@ -303,7 +343,6 @@ class ScannerOverlayPainter extends CustomPainter {
       rect.bottomLeft + Offset(cornerSize, 0),
       paint,
     );
-    // Sağ Alt
     canvas.drawLine(
       rect.bottomRight,
       rect.bottomRight - Offset(0, cornerSize),
@@ -323,9 +362,7 @@ class ScannerOverlayPainter extends CustomPainter {
 class LaserLinePainter extends CustomPainter {
   final double progress;
   final Color color;
-
   LaserLinePainter({required this.progress, required this.color});
-
   @override
   void paint(Canvas canvas, Size size) {
     final paint =
@@ -333,21 +370,17 @@ class LaserLinePainter extends CustomPainter {
           ..color = color
           ..strokeWidth = 2.0
           ..style = PaintingStyle.stroke;
-
     final shadowPaint =
         Paint()
           ..color = color.withOpacity(0.5)
           ..strokeWidth = 6.0
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
-
     final yPos = size.height * progress;
-
     canvas.drawLine(Offset(0, yPos), Offset(size.width, yPos), shadowPaint);
     canvas.drawLine(Offset(0, yPos), Offset(size.width, yPos), paint);
   }
 
   @override
-  bool shouldRepaint(covariant LaserLinePainter oldDelegate) {
-    return oldDelegate.progress != progress;
-  }
+  bool shouldRepaint(covariant LaserLinePainter oldDelegate) =>
+      oldDelegate.progress != progress;
 }
