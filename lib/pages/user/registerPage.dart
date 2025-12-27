@@ -105,6 +105,7 @@ class _RegisterPageState extends State<RegisterPage> {
                     (context) => VerificationPage(
                       verificationId: verificationId,
                       isPasswordReset: false,
+                      phoneNumber: phone,
                     ),
               ),
             );

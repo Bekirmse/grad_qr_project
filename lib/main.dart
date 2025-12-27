@@ -98,7 +98,7 @@ class MyApp extends StatelessWidget {
           labelStyle: const TextStyle(color: Colors.grey),
         ),
       ),
-      initialRoute: '/admin',
+      initialRoute: '/login',
       routes: {
         '/login': (context) => const LoginPage(),
         '/register': (context) => const RegisterPage(),

@@ -124,6 +124,7 @@ class _LoginPageState extends State<LoginPage> {
                     (context) => VerificationPage(
                       verificationId: verificationId,
                       isPasswordReset: false,
+                      phoneNumber: phone,
                     ),
               ),
             );
