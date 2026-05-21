@@ -1,6 +1,9 @@
+// ignore_for_file: file_names
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../services/auth_service.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -12,9 +15,11 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage> {
   final AuthService _authService = AuthService();
-  User? currentUser;
-  Map<String, dynamic>? userData;
-  bool isLoading = true;
+  User? _currentUser;
+  Map<String, dynamic>? _userData;
+  bool _isLoading = true;
+
+  static const Color _green = Color(0xFF2E7D32);
 
   @override
   void initState() {
@@ -23,106 +28,76 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> _fetchUserData() async {
-    currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser != null) {
+    _currentUser = FirebaseAuth.instance.currentUser;
+    if (_currentUser != null) {
       try {
-        DocumentSnapshot userDoc =
-            await FirebaseFirestore.instance
-                .collection('users')
-                .doc(currentUser!.uid)
-                .get();
-
-        if (userDoc.exists && mounted) {
+        final doc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(_currentUser!.uid)
+            .get();
+        if (doc.exists && mounted) {
           setState(() {
-            userData = userDoc.data() as Map<String, dynamic>;
-            isLoading = false;
+            _userData = doc.data() as Map<String, dynamic>;
+            _isLoading = false;
           });
         }
-      } catch (e) {
-        if (mounted) setState(() => isLoading = false);
+      } catch (_) {
+        if (mounted) setState(() => _isLoading = false);
       }
+    } else {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  void _handleLogout() async {
+  Future<void> _handleLogout() async {
     await _authService.signOut();
     if (mounted) {
       Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
     }
   }
 
-  void _deleteAccount() async {
-    // 1. Kullanıcıdan onay al
-    bool? confirm = await showDialog<bool>(
+  Future<void> _deleteAccount() async {
+    final confirm = await showDialog<bool>(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text("Delete Account Permanently"),
-          content: const Text(
-            "This will permanently delete your profile data and your authentication account. This action cannot be undone.",
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text('Delete Account', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+        content: Text(
+          'This will permanently delete your profile and authentication account. This action cannot be undone.',
+          style: GoogleFonts.poppins(fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancel', style: GoogleFonts.poppins()),
           ),
-          actions: [
-            TextButton(
-              child: const Text("Cancel"),
-              onPressed: () => Navigator.of(context).pop(false),
-            ),
-            TextButton(
-              child: const Text(
-                "Delete Everything",
-                style: TextStyle(
-                  color: Colors.red,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              onPressed: () => Navigator.of(context).pop(true),
-            ),
-          ],
-        );
-      },
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Delete Everything', style: GoogleFonts.poppins(color: Colors.red, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
     );
-
     if (confirm != true) return;
-
-    // 2. Yükleniyor göster
     if (!mounted) return;
+
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder:
-          (context) => const Center(
-            child: CircularProgressIndicator(color: Color(0xFF2E7D32)),
-          ),
+      builder: (_) => const Center(child: CircularProgressIndicator(color: _green)),
     );
 
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
-        final String uid = user.uid;
-
-        // ADIM A: Firestore'daki 'users' koleksiyonundan dökümanı sil
-        // Not: Önce Firestore'u silmek daha iyidir, çünkü Auth silindikten sonra
-        // güvenlik kuralları nedeniyle Firestore'a erişiminiz kesilebilir.
-        await FirebaseFirestore.instance.collection('users').doc(uid).delete();
-
-        // ADIM B: Firebase Auth üzerindeki hesabı sil
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).delete();
         await user.delete();
-
-        // 3. Başarılı İşlem Sonrası Yönlendirme
         if (mounted) {
-          Navigator.of(context, rootNavigator: true).pop(); // Loading kapat
-
-          // Tüm geçmişi temizle ve Login'e at
-          Navigator.pushNamedAndRemoveUntil(
-            context,
-            '/login',
-            (route) => false,
-          );
-
+          Navigator.of(context, rootNavigator: true).pop();
+          Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                "All your data and account have been permanently removed.",
-              ),
+            SnackBar(
+              content: Text('Account permanently deleted.', style: GoogleFonts.poppins()),
               backgroundColor: Colors.black87,
             ),
           );
@@ -130,327 +105,308 @@ class _ProfilePageState extends State<ProfilePage> {
       }
     } on FirebaseAuthException catch (e) {
       if (mounted) Navigator.of(context, rootNavigator: true).pop();
-
-      // Eğer kullanıcı uzun süredir login ise 'requires-recent-login' hatası verir.
       if (e.code == 'requires-recent-login') {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              "Please log out and log in again to delete your account for security.",
-            ),
+          SnackBar(
+            content: Text('Please log out and log back in to delete your account.', style: GoogleFonts.poppins()),
           ),
         );
       } else {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("Error: ${e.message}")));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${e.message}', style: GoogleFonts.poppins())),
+        );
       }
-    } catch (e) {
+    } catch (_) {
       if (mounted) Navigator.of(context, rootNavigator: true).pop();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("An unexpected error occurred.")),
+        SnackBar(content: Text('An unexpected error occurred.', style: GoogleFonts.poppins())),
       );
     }
   }
 
-  // Privacy Policy Metni
-  void _showPrivacyPolicy(BuildContext context) {
+  void _showPrivacyPolicy() {
     showDialog(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text(
-            "Privacy Policy",
-            style: TextStyle(fontWeight: FontWeight.bold),
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text('Privacy Policy', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+        content: SingleChildScrollView(
+          child: Text(
+            'Last Updated: 2025\n\n'
+            '1. Overview\n'
+            'ScanWiser respects your privacy. This Privacy Policy explains how we collect, use, and safeguard your information.\n\n'
+            '2. Data Collection\n'
+            '• Account Information: We collect your name and email address during registration.\n'
+            '• Usage Data: We may process data related to barcodes scanned to provide price comparisons.\n\n'
+            '3. Use of Information\n'
+            'We use data for authenticating users and providing product price comparisons.\n\n'
+            '4. Third-Party Services\n'
+            'We utilize Google Firebase for authentication and database storage.\n\n'
+            '5. Account Deletion\n'
+            'You can delete your account via Profile settings. Your data will be removed permanently.\n\n'
+            '6. Contact\n'
+            'For questions, please contact the development team.',
+            style: GoogleFonts.poppins(fontSize: 13, height: 1.5),
           ),
-          content: const SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "Last Updated: 2025\n\n"
-                  "1. Overview\n"
-                  "ScanWiser (\"we\", \"our\", or \"us\") respects your privacy. This Privacy Policy explains how we collect, use, and safeguard your information.\n\n"
-                  "2. Data Collection\n"
-                  "• Account Information: We collect your name and email address during registration.\n"
-                  "• Usage Data: We may process data related to barcodes scanned to provide price comparisons.\n\n"
-                  "3. Use of Information\n"
-                  "We use data for authenticating users and providing product price comparisons.\n\n"
-                  "4. Third-Party Services\n"
-                  "We utilize Google Firebase for authentication and database storage.\n\n"
-                  "5. Account Deletion\n"
-                  "You can delete your account via Profile settings. Your data will be removed permanently.\n\n"
-                  "6. Contact\n"
-                  "For questions, please contact the development team.",
-                  style: TextStyle(fontSize: 14, height: 1.4),
-                ),
-              ],
-            ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Close', style: GoogleFonts.poppins(color: _green, fontWeight: FontWeight.w600)),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text(
-                "Close",
-                style: TextStyle(color: Color(0xFF2E7D32)),
-              ),
-            ),
-          ],
-        );
-      },
+        ],
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    const Color appGreen = Color(0xFF2E7D32);
-    String initial = "U";
-    if (userData != null &&
-        userData!['name'] != null &&
-        userData!['name'].toString().isNotEmpty) {
-      initial = userData!['name'][0].toUpperCase();
-    }
+    final name = _userData?['fullName']?.toString() ?? _userData?['name']?.toString() ?? 'User';
+    final initial = name.isNotEmpty ? name[0].toUpperCase() : 'U';
+    final email = _currentUser?.email ?? '';
 
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
-        title: const Text("My Profile", style: TextStyle(color: Colors.black)),
         backgroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
+        title: Text(
+          'My Profile',
+          style: GoogleFonts.poppins(color: const Color(0xFF1A1A2E), fontWeight: FontWeight.w600, fontSize: 18),
+        ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black),
+          icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFF1A1A2E), size: 18),
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body:
-          isLoading
-              ? const Center(child: CircularProgressIndicator(color: appGreen))
-              : SingleChildScrollView(
-                child: Column(
-                  children: [
-                    const SizedBox(height: 20),
-
-                    // 1. KULLANICI KARTI
-                    Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 20),
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.grey.withOpacity(0.1),
-                            blurRadius: 10,
-                            offset: const Offset(0, 5),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 35,
-                            backgroundColor: appGreen.withOpacity(0.1),
-                            backgroundImage:
-                                (userData != null &&
-                                        userData!['profile_image'] != null)
-                                    ? NetworkImage(userData!['profile_image'])
-                                    : null,
-                            child:
-                                (userData == null ||
-                                        userData!['profile_image'] == null)
-                                    ? Text(
-                                      initial,
-                                      style: const TextStyle(
-                                        fontSize: 28,
-                                        fontWeight: FontWeight.bold,
-                                        color: appGreen,
-                                      ),
-                                    )
-                                    : null,
-                          ),
-                          const SizedBox(width: 20),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  userData?['fullName'] ?? "User",
-                                  style: const TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.black87,
-                                  ),
-                                ),
-                                const SizedBox(height: 5),
-                                Text(
-                                  currentUser?.email ?? "no-email@domain.com",
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.grey[600],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.edit, color: Colors.grey),
-                            onPressed: () async {
-                              final result = await Navigator.pushNamed(
-                                context,
-                                '/edit-profile',
-                              );
-                              if (result == true) _fetchUserData();
-                            },
-                          ),
-                        ],
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator(color: _green))
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  _ProfileCard(
+                    name: name,
+                    email: email,
+                    initial: initial,
+                    onEditTap: () async {
+                      final result = await Navigator.pushNamed(context, '/edit-profile');
+                      if (result == true) _fetchUserData();
+                    },
+                  ),
+                  const SizedBox(height: 24),
+                  _SectionLabel(label: 'Account'),
+                  _MenuTile(
+                    icon: Icons.lock_outline_rounded,
+                    title: 'Change Password',
+                    subtitle: 'Update your password',
+                    onTap: () => Navigator.pushNamed(context, '/change-password'),
+                  ),
+                  _MenuTile(
+                    icon: Icons.delete_outline_rounded,
+                    title: 'Delete Account',
+                    subtitle: 'Permanently remove your data',
+                    isDestructive: true,
+                    onTap: _deleteAccount,
+                  ),
+                  const SizedBox(height: 8),
+                  _SectionLabel(label: 'Legal & About'),
+                  _MenuTile(
+                    icon: Icons.privacy_tip_outlined,
+                    title: 'Privacy Policy',
+                    subtitle: 'Terms & Conditions',
+                    onTap: _showPrivacyPolicy,
+                  ),
+                  _MenuTile(
+                    icon: Icons.info_outline_rounded,
+                    title: 'Version',
+                    subtitle: '1.0.0',
+                    showArrow: false,
+                  ),
+                  _MenuTile(
+                    icon: Icons.copyright_rounded,
+                    title: 'License',
+                    subtitle: '© 2025 ScanWiser. All rights reserved.',
+                    showArrow: false,
+                  ),
+                  const SizedBox(height: 28),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: _handleLogout,
+                      icon: const Icon(Icons.logout_rounded),
+                      label: Text('Log Out', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFFFEBEE),
+                        foregroundColor: Colors.red[700],
+                        elevation: 0,
+                        minimumSize: const Size(double.infinity, 56),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       ),
                     ),
-
-                    const SizedBox(height: 30),
-
-                    // 2. ACCOUNT
-                    _buildSectionTitle("Account"),
-
-                    _buildMenuOption(
-                      icon: Icons.lock_outline_rounded,
-                      title: "Change Password",
-                      subtitle: "Update your password",
-                      onTap: () {
-                        Navigator.pushNamed(context, '/change-password');
-                      },
-                    ),
-
-                    _buildMenuOption(
-                      icon: Icons.delete_outline_rounded,
-                      title: "Delete Account",
-                      subtitle: "Permanently remove your data",
-                      isDestructive: true,
-                      onTap: _deleteAccount, // Yeni fonksiyonumuz burada
-                    ),
-
-                    const SizedBox(height: 10),
-                    _buildSectionTitle("Legal & About"),
-
-                    _buildMenuOption(
-                      icon: Icons.privacy_tip_outlined,
-                      title: "Privacy Policy",
-                      subtitle: "Terms & Conditions",
-                      onTap: () => _showPrivacyPolicy(context),
-                    ),
-
-                    _buildMenuOption(
-                      icon: Icons.info_outline_rounded,
-                      title: "Version",
-                      subtitle: "1.0.0",
-                      onTap: null,
-                      showArrow: false,
-                    ),
-
-                    _buildMenuOption(
-                      icon: Icons.copyright_rounded,
-                      title: "License",
-                      subtitle: "©️ 2025 ScanWiser. All rights reserved.",
-                      onTap: null,
-                      showArrow: false,
-                    ),
-
-                    const SizedBox(height: 30),
-
-                    // 3. LOGOUT
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: ElevatedButton.icon(
-                        onPressed: _handleLogout,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFFFEBEE),
-                          foregroundColor: Colors.red[700],
-                          elevation: 0,
-                          minimumSize: const Size(double.infinity, 55),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
-                        icon: const Icon(Icons.logout),
-                        label: const Text(
-                          "Log Out",
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 40),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 32),
+                ],
               ),
+            ),
     );
   }
+}
 
-  // Yardımcı Widget: Menü Satırı
-  Widget _buildMenuOption({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required VoidCallback? onTap,
-    bool isDestructive = false,
-    bool showArrow = true,
-  }) {
+class _ProfileCard extends StatelessWidget {
+  final String name;
+  final String email;
+  final String initial;
+  final VoidCallback onEditTap;
+
+  const _ProfileCard({
+    required this.name,
+    required this.email,
+    required this.initial,
+    required this.onEditTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade100),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
-      child: ListTile(
-        onTap: onTap,
-        leading: Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: isDestructive ? Colors.red[50] : const Color(0xFFE8F5E9),
-            borderRadius: BorderRadius.circular(10),
+      child: Row(
+        children: [
+          Container(
+            width: 70,
+            height: 70,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: const LinearGradient(
+                colors: [Color(0xFF2E7D32), Color(0xFF66BB6A)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+            child: Center(
+              child: Text(
+                initial,
+                style: GoogleFonts.poppins(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
+              ),
+            ),
           ),
-          child: Icon(
-            icon,
-            color: isDestructive ? Colors.red : const Color(0xFF2E7D32),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w700, color: const Color(0xFF1A1A2E)),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  email,
+                  style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey[500]),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
           ),
-        ),
-        title: Text(
-          title,
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 16,
-            color: isDestructive ? Colors.red : Colors.black87,
+          GestureDetector(
+            onTap: onEditTap,
+            child: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE8F5E9),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.edit_outlined, color: Color(0xFF2E7D32), size: 20),
+            ),
           ),
-        ),
-        subtitle: Text(
-          subtitle,
-          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-        ),
-        trailing:
-            showArrow
-                ? const Icon(Icons.chevron_right, color: Colors.grey)
-                : null,
+        ],
       ),
     );
   }
+}
 
-  Widget _buildSectionTitle(String title) {
+class _SectionLabel extends StatelessWidget {
+  final String label;
+  const _SectionLabel({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(left: 24, bottom: 10),
+      padding: const EdgeInsets.only(left: 4, bottom: 10),
       child: Align(
         alignment: Alignment.centerLeft,
         child: Text(
-          title,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-            color: Colors.grey,
-            letterSpacing: 1,
+          label.toUpperCase(),
+          style: GoogleFonts.poppins(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: Colors.grey[500],
+            letterSpacing: 1.2,
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _MenuTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback? onTap;
+  final bool isDestructive;
+  final bool showArrow;
+
+  const _MenuTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    this.onTap,
+    this.isDestructive = false,
+    this.showArrow = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isDestructive ? Colors.red : const Color(0xFF2E7D32);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 8, offset: const Offset(0, 2)),
+        ],
+      ),
+      child: ListTile(
+        onTap: onTap,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        leading: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: isDestructive ? Colors.red.withValues(alpha: 0.08) : const Color(0xFFE8F5E9),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, color: color, size: 20),
+        ),
+        title: Text(
+          title,
+          style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 15, color: isDestructive ? Colors.red : const Color(0xFF1A1A2E)),
+        ),
+        subtitle: Text(subtitle, style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[500])),
+        trailing: showArrow ? const Icon(Icons.chevron_right, color: Colors.grey) : null,
       ),
     );
   }

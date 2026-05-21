@@ -3,6 +3,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../../services/api_price_service.dart';
 
 class ResultPage extends StatefulWidget {
   final String barcode;
@@ -15,96 +18,160 @@ class ResultPage extends StatefulWidget {
 
 class _ResultPageState extends State<ResultPage> {
   Map<String, dynamic>? _product;
-  List<Map<String, dynamic>>? _prices;
-
+  List<Map<String, dynamic>> _prices = [];
   bool _isLoading = true;
   String? _errorMessage;
+  bool _isFavorite = false;
+
+  final _user = FirebaseAuth.instance.currentUser;
 
   @override
   void initState() {
     super.initState();
-    if (kDebugMode) {
-      print("🔴 DEBUG: ResultPage başlatıldı: ${widget.barcode}");
-    }
     _fetchData();
   }
 
   Future<void> _fetchData() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
 
-    String cleanBarcode = widget.barcode.trim();
+    final cleanBarcode = widget.barcode.trim();
 
     try {
-      // 1. ÜRÜN SORGUSU
-      DocumentSnapshot productDoc =
+      final apiResult = await ApiPriceService.getProductWithPrices(cleanBarcode);
+
+      if (apiResult != null) {
+        bool isFav = false;
+        if (_user != null) {
+          final favDoc =
+              await FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(_user.uid)
+                  .collection('favorites')
+                  .doc(cleanBarcode)
+                  .get();
+          isFav = favDoc.exists;
+        }
+
+        if (mounted) {
+          setState(() {
+            _product = {
+              'productName': apiResult['productName'],
+              'brand': apiResult['brand'],
+              'category': apiResult['category'],
+              'imageUrl': apiResult['imageUrl'],
+            };
+            _prices = List<Map<String, dynamic>>.from(apiResult['prices']);
+            _isFavorite = isFav;
+            _isLoading = false;
+          });
+        }
+        return;
+      }
+
+      final productDoc =
           await FirebaseFirestore.instance
               .collection('products')
               .doc(cleanBarcode)
               .get();
 
-      // --- NAVİGASYON MANTIĞI (ScanPage ile uyumlu) ---
       if (!productDoc.exists) {
-        if (kDebugMode) {
-          print("🔴 DEBUG: Ürün bulunamadı. 'not_found' sinyali gönderiliyor.");
-        }
-        if (mounted) {
-          // Sayfayı kapat ve 'not_found' döndür (ScanPage bunu yakalayacak)
-          Navigator.pop(context, 'not_found');
-        }
+        if (mounted) Navigator.pop(context, 'not_found');
         return;
       }
-      // ------------------------------------------------
 
-      // 2. FİYAT SORGUSU (En ucuzdan pahalıya sıralı)
-      QuerySnapshot priceSnapshot =
+      final priceSnapshot =
           await FirebaseFirestore.instance
               .collection('prices')
               .where('productBarcode', isEqualTo: cleanBarcode)
               .orderBy('price')
               .get();
 
-      // 3. MARKET BİLGİLERİNİ EŞLEŞTİRME
-      List<Map<String, dynamic>> tempPrices = [];
-
-      for (var doc in priceSnapshot.docs) {
-        var priceData = doc.data() as Map<String, dynamic>;
-        String marketId = priceData['marketId'] ?? '';
-
+      final List<Map<String, dynamic>> tempPrices = [];
+      for (final doc in priceSnapshot.docs) {
+        final priceData = Map<String, dynamic>.from(doc.data());
+        final marketId = priceData['marketId'] ?? '';
         if (marketId.isNotEmpty) {
-          var marketDoc =
+          final marketDoc =
               await FirebaseFirestore.instance
                   .collection('supermarkets')
                   .doc(marketId)
                   .get();
-
           if (marketDoc.exists) {
-            var marketData = marketDoc.data() as Map<String, dynamic>;
-            priceData['marketName'] = marketData['name'];
-            priceData['marketLogoUrl'] = marketData['logoUrl'];
+            final m = marketDoc.data() as Map<String, dynamic>;
+            priceData['marketName'] = m['name'];
+            priceData['marketLogoUrl'] = m['logoUrl'];
           } else {
-            priceData['marketName'] = "Unknown Market";
+            priceData['marketName'] = 'Unknown Market';
           }
         }
         tempPrices.add(priceData);
+      }
+
+      bool isFav = false;
+      if (_user != null) {
+        final favDoc =
+            await FirebaseFirestore.instance
+                .collection('users')
+                .doc(_user.uid)
+                .collection('favorites')
+                .doc(cleanBarcode)
+                .get();
+        isFav = favDoc.exists;
       }
 
       if (mounted) {
         setState(() {
           _product = productDoc.data() as Map<String, dynamic>;
           _prices = tempPrices;
+          _isFavorite = isFav;
           _isLoading = false;
         });
       }
     } catch (e) {
-      if (kDebugMode) {
-        print("🔴 DEBUG: HATA: $e");
-      }
+      if (kDebugMode) print('ResultPage error: $e');
       if (mounted) {
         setState(() {
-          _errorMessage = "Sistem hatası: $e";
+          _errorMessage = 'An error occurred: $e';
           _isLoading = false;
         });
       }
+    }
+  }
+
+  Future<void> _toggleFavorite() async {
+    if (_user == null || _product == null) return;
+
+    final ref = FirebaseFirestore.instance
+        .collection('users')
+        .doc(_user.uid)
+        .collection('favorites')
+        .doc(widget.barcode);
+
+    setState(() => _isFavorite = !_isFavorite);
+
+    if (_isFavorite) {
+      await ref.set({
+        'productName': _product!['productName'] ?? '',
+        'category': _product!['category'] ?? '',
+        'brand': _product!['brand'] ?? '',
+        'imageUrl': _product!['imageUrl'] ?? '',
+        'savedAt': FieldValue.serverTimestamp(),
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Added to favorites', style: GoogleFonts.poppins()),
+            backgroundColor: const Color(0xFF2E7D32),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+      }
+    } else {
+      await ref.delete();
     }
   }
 
@@ -112,7 +179,7 @@ class _ResultPageState extends State<ResultPage> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(
-        backgroundColor: Color(0xFFF5F5F5),
+        backgroundColor: Color(0xFFF5F7FA),
         body: Center(
           child: CircularProgressIndicator(color: Color(0xFF2E7D32)),
         ),
@@ -121,123 +188,214 @@ class _ResultPageState extends State<ResultPage> {
 
     if (_errorMessage != null) {
       return Scaffold(
-        backgroundColor: const Color(0xFFF5F5F5),
+        backgroundColor: const Color(0xFFF5F7FA),
         appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black),
+            icon: const Icon(Icons.arrow_back_ios_new),
             onPressed: () => Navigator.pop(context),
           ),
         ),
         body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.error_outline, size: 80, color: Colors.grey),
-                const SizedBox(height: 16),
-                Text(
-                  _errorMessage!,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 16, color: Colors.red),
-                ),
-              ],
-            ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, size: 64, color: Colors.grey),
+              const SizedBox(height: 16),
+              Text(
+                _errorMessage!,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.poppins(color: Colors.red),
+              ),
+            ],
           ),
         ),
       );
     }
 
+    final imageUrl = _product!['imageUrl']?.toString() ?? '';
+    final productName = _product!['productName']?.toString() ?? 'Unknown';
+    final category = _product!['category']?.toString() ?? '';
+    final brand = _product!['brand']?.toString() ?? '';
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
-      appBar: AppBar(
-        title: const Text(
-          'Product Details',
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
-        ),
-        centerTitle: true,
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            // --- ÜRÜN BİLGİ KARTI ---
-            Container(
-              width: double.infinity,
-              color: Colors.white,
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                children: [
-                  // Ürün Resmi
-                  Container(
-                    height: 150,
-                    width: 150,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[100],
-                      borderRadius: BorderRadius.circular(20),
-                      image:
-                          (_product!['imageUrl'] != null &&
-                                  _product!['imageUrl'].toString().isNotEmpty)
-                              ? DecorationImage(
-                                image: NetworkImage(_product!['imageUrl']),
+      backgroundColor: const Color(0xFFF5F7FA),
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar(
+            expandedHeight: 280,
+            pinned: true,
+            backgroundColor: Colors.white,
+            leading: GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: Container(
+                margin: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.08),
+                      blurRadius: 8,
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.arrow_back_ios_new,
+                  color: Color(0xFF1A1A2E),
+                  size: 18,
+                ),
+              ),
+            ),
+            actions: [
+              GestureDetector(
+                onTap: _toggleFavorite,
+                child: Container(
+                  margin: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.08),
+                        blurRadius: 8,
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    _isFavorite
+                        ? Icons.favorite_rounded
+                        : Icons.favorite_border_rounded,
+                    color:
+                        _isFavorite
+                            ? const Color(0xFFE53935)
+                            : const Color(0xFF1A1A2E),
+                    size: 22,
+                  ),
+                ),
+              ),
+            ],
+            flexibleSpace: FlexibleSpaceBar(
+              background: Container(
+                color: Colors.white,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const SizedBox(height: 60),
+                    SizedBox(
+                      height: 150,
+                      width: 150,
+                      child:
+                          imageUrl.isNotEmpty
+                              ? Image.network(
+                                imageUrl,
                                 fit: BoxFit.contain,
+                                errorBuilder:
+                                    (_, __, ___) => const Icon(
+                                      Icons.shopping_bag_outlined,
+                                      size: 80,
+                                      color: Colors.grey,
+                                    ),
                               )
-                              : null,
+                              : const Icon(
+                                Icons.shopping_bag_outlined,
+                                size: 80,
+                                color: Colors.grey,
+                              ),
                     ),
-                    child:
-                        (_product!['imageUrl'] == null ||
-                                _product!['imageUrl'].toString().isEmpty)
-                            ? const Icon(
-                              Icons.shopping_bag,
-                              size: 80,
-                              color: Colors.grey,
-                            )
-                            : null,
+                  ],
+                ),
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Container(
+              color: Colors.white,
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      if (category.isNotEmpty)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE8F5E9),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            category,
+                            style: GoogleFonts.poppins(
+                              color: const Color(0xFF2E7D32),
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      const Spacer(),
+                      Text(
+                        'Barcode: ${widget.barcode}',
+                        style: GoogleFonts.poppins(
+                          fontSize: 11,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 20),
-
-                  // Ürün İsmi
+                  const SizedBox(height: 10),
                   Text(
-                    _product!['productName'] ?? 'Unknown',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1B5E20),
+                    productName,
+                    style: GoogleFonts.poppins(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF1A1A2E),
                     ),
                   ),
-                  const SizedBox(height: 8),
-
-                  // Barkod
+                  if (brand.isNotEmpty)
+                    Text(
+                      brand,
+                      style: GoogleFonts.poppins(
+                        fontSize: 13,
+                        color: Colors.grey,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+              child: Row(
+                children: [
                   Text(
-                    'Barcode: ${widget.barcode}',
-                    style: const TextStyle(color: Colors.grey, fontSize: 14),
+                    'Price Comparison',
+                    style: GoogleFonts.poppins(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF1A1A2E),
+                    ),
                   ),
-
-                  const SizedBox(height: 12),
-
-                  // Kategori Chip
-                  if (_product!['category'] != null)
+                  const SizedBox(width: 8),
+                  if (_prices.isNotEmpty)
                     Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
+                        horizontal: 10,
+                        vertical: 2,
                       ),
                       decoration: BoxDecoration(
                         color: const Color(0xFFE8F5E9),
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        _product!['category'],
-                        style: const TextStyle(
-                          color: Color(0xFF2E7D32),
+                        '${_prices.length} stores',
+                        style: GoogleFonts.poppins(
+                          fontSize: 11,
+                          color: const Color(0xFF2E7D32),
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -245,124 +403,112 @@ class _ResultPageState extends State<ResultPage> {
                 ],
               ),
             ),
-
-            const SizedBox(height: 20),
-
-            // --- FİYAT LİSTESİ BAŞLIĞI ---
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'Price Comparison',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey[800],
+          ),
+          if (_prices.isNotEmpty)
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) =>
+                      _buildPriceCard(_prices[index], index == 0),
+                  childCount: _prices.length,
+                ),
+              ),
+            )
+          else
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.all(40),
+                child: Center(
+                  child: Text(
+                    'No price data available for this product.',
+                    style: GoogleFonts.poppins(color: Colors.grey),
                   ),
                 ),
               ),
             ),
-            const SizedBox(height: 12),
-
-            // --- FİYAT LİSTESİ ---
-            if (_prices != null && _prices!.isNotEmpty)
-              ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: _prices!.length,
-                itemBuilder: (context, index) {
-                  final priceData = _prices![index];
-
-                  // Liste fiyata göre sıralı geldiği için ilk eleman (index 0) en ucuzdur.
-                  final bool isBestPrice = index == 0;
-
-                  return _buildPriceCard(priceData, isBestPrice);
-                },
-              )
-            else
-              const Padding(
-                padding: EdgeInsets.all(20.0),
-                child: Text("No prices found for this product."),
-              ),
-
-            const SizedBox(height: 24),
-          ],
-        ),
+        ],
       ),
     );
   }
 
-  // --- GELİŞMİŞ FİYAT KARTI TASARIMI ---
-  Widget _buildPriceCard(Map<String, dynamic> priceData, bool isBestPrice) {
-    double price = double.tryParse(priceData['price'].toString()) ?? 0.0;
-    String currency = priceData['currency'] ?? 'TRY';
-    String marketName = priceData['marketName'] ?? 'Unknown Market';
-    String? logoUrl = priceData['marketLogoUrl'];
+  Widget _buildPriceCard(Map<String, dynamic> priceData, bool isBest) {
+    final price = double.tryParse(priceData['price'].toString()) ?? 0.0;
+    final currency = priceData['currency'] ?? 'TRY';
+    final marketName = priceData['marketName'] ?? 'Unknown Market';
+    final logoUrl = priceData['marketLogoUrl']?.toString() ?? '';
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+      margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        // En ucuzsa yeşil çerçeve, değilse şeffaf
+        borderRadius: BorderRadius.circular(18),
         border:
-            isBestPrice
+            isBest
                 ? Border.all(color: const Color(0xFF2E7D32), width: 2)
-                : Border.all(color: Colors.transparent),
+                : null,
         boxShadow: [
           BoxShadow(
-            // ignore: deprecated_member_use
-            color: Colors.grey.withOpacity(0.05),
-            blurRadius: 10,
+            color:
+                isBest
+                    ? const Color(0xFF2E7D32).withValues(alpha: 0.12)
+                    : Colors.black.withValues(alpha: 0.04),
+            blurRadius: 12,
             offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Row(
         children: [
-          // MARKET LOGOSU
           Container(
-            width: 50,
-            height: 50,
-            padding: const EdgeInsets.all(8),
+            width: 54,
+            height: 54,
             decoration: BoxDecoration(
-              color: isBestPrice ? const Color(0xFFE8F5E9) : Colors.grey[100],
+              color:
+                  isBest
+                      ? const Color(0xFFE8F5E9)
+                      : const Color(0xFFF5F7FA),
               shape: BoxShape.circle,
-              image:
-                  (logoUrl != null && logoUrl.isNotEmpty)
-                      ? DecorationImage(
-                        image: NetworkImage(logoUrl),
-                        fit: BoxFit.contain, // Logoyu sığdır
-                      )
-                      : null,
             ),
             child:
-                (logoUrl == null || logoUrl.isEmpty)
-                    ? Icon(
-                      Icons.store_mall_directory_rounded,
-                      color:
-                          isBestPrice ? const Color(0xFF2E7D32) : Colors.grey,
+                logoUrl.isNotEmpty
+                    ? ClipOval(
+                      child: Image.network(
+                        logoUrl,
+                        fit: BoxFit.contain,
+                        errorBuilder:
+                            (_, __, ___) => Icon(
+                              Icons.store_rounded,
+                              color:
+                                  isBest
+                                      ? const Color(0xFF2E7D32)
+                                      : Colors.grey,
+                              size: 26,
+                            ),
+                      ),
                     )
-                    : null,
+                    : Icon(
+                      Icons.store_rounded,
+                      color:
+                          isBest ? const Color(0xFF2E7D32) : Colors.grey,
+                      size: 26,
+                    ),
           ),
-
-          const SizedBox(width: 16),
-
-          // MARKET ADI VE 'BEST DEAL' ROZETİ
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   marketName,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
+                  style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                    color: const Color(0xFF1A1A2E),
                   ),
                 ),
-                if (isBestPrice)
+                if (isBest)
                   Container(
                     margin: const EdgeInsets.only(top: 4),
                     padding: const EdgeInsets.symmetric(
@@ -373,27 +519,27 @@ class _ResultPageState extends State<ResultPage> {
                       color: const Color(0xFFE8F5E9),
                       borderRadius: BorderRadius.circular(6),
                     ),
-                    child: const Text(
-                      'Best Deal!',
-                      style: TextStyle(
-                        color: Color(0xFF2E7D32),
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
+                    child: Text(
+                      'Best Deal',
+                      style: GoogleFonts.poppins(
+                        color: const Color(0xFF2E7D32),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ),
               ],
             ),
           ),
-
-          // FİYAT METNİ
           Text(
             '${price.toStringAsFixed(2)} $currency',
-            style: TextStyle(
+            style: GoogleFonts.poppins(
               fontSize: 20,
-              fontWeight: FontWeight.bold,
-              // En ucuzsa yeşil, değilse siyah
-              color: isBestPrice ? const Color(0xFF2E7D32) : Colors.black87,
+              fontWeight: FontWeight.w700,
+              color:
+                  isBest
+                      ? const Color(0xFF2E7D32)
+                      : const Color(0xFF1A1A2E),
             ),
           ),
         ],

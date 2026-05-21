@@ -1,0 +1,291 @@
+{
+  "supermarkets": [
+    { "id": "dima", "name": "Dima", "logoUrl": "https://i.imgur.com/rQw5WBF.png" },
+    { "id": "erulku", "name": "Erülkü Süpermarket", "logoUrl": "https://i.imgur.com/7KpGvQn.png" },
+    { "id": "kiler", "name": "Kiler", "logoUrl": "https://i.imgur.com/mX3NKZL.png" },
+    { "id": "macro", "name": "Macro Süpermarket", "logoUrl": "https://i.imgur.com/osPfTaV.png" },
+    { "id": "sokmar", "name": "Şokmar", "logoUrl": "https://i.imgur.com/4ZWPCYL.png" }
+  ],
+  "products": [
+    {
+      "barcode": "8690504021056",
+      "productName": "Ülker Çikolatalı Gofret 36g",
+      "brand": "Ülker",
+      "category": "Snacks",
+      "imageUrl": "https://images.migros.com.tr/raw/upload/w_600,h_600,c_fit,f_auto,q_auto/fn-product-images/products/ulker-cikolatali-gofret-36g-19040.jpg",
+      "prices": [
+        { "marketId": "dima", "price": 12.50, "currency": "TRY" },
+        { "marketId": "erulku", "price": 11.90, "currency": "TRY" },
+        { "marketId": "kiler", "price": 13.00, "currency": "TRY" },
+        { "marketId": "macro", "price": 12.75, "currency": "TRY" },
+        { "marketId": "sokmar", "price": 11.50, "currency": "TRY" }
+      ]
+    },
+    {
+      "barcode": "8690566002498",
+      "productName": "Dimes Portakal Suyu 1L",
+      "brand": "Dimes",
+      "category": "Beverages",
+      "imageUrl": "https://images.migros.com.tr/raw/upload/w_600,h_600,c_fit,f_auto,q_auto/fn-product-images/products/dimes-portakal-1-lt-1697.jpg",
+      "prices": [
+        { "marketId": "dima", "price": 48.90, "currency": "TRY" },
+        { "marketId": "erulku", "price": 46.50, "currency": "TRY" },
+        { "marketId": "kiler", "price": 49.90, "currency": "TRY" },
+        { "marketId": "macro", "price": 47.00, "currency": "TRY" },
+        { "marketId": "sokmar", "price": 45.90, "currency": "TRY" }
+      ]
+    },
+    {
+      "barcode": "5000159407236",
+      "productName": "Nescafé Classic 100g",
+      "brand": "Nescafé",
+      "category": "Beverages",
+      "imageUrl": "https://images.migros.com.tr/raw/upload/w_600,h_600,c_fit,f_auto,q_auto/fn-product-images/products/nescafe-classic-100g-1820.jpg",
+      "prices": [
+        { "marketId": "dima", "price": 189.90, "currency": "TRY" },
+        { "marketId": "erulku", "price": 185.00, "currency": "TRY" },
+        { "marketId": "kiler", "price": 192.00, "currency": "TRY" },
+        { "marketId": "macro", "price": 187.50, "currency": "TRY" },
+        { "marketId": "sokmar", "price": 183.90, "currency": "TRY" }
+      ]
+    },
+    {
+      "barcode": "8690762000012",
+      "productName": "Sek Tam Yağlı Süt 1L",
+      "brand": "Sek",
+      "category": "Dairy",
+      "imageUrl": "https://images.migros.com.tr/raw/upload/w_600,h_600,c_fit,f_auto,q_auto/fn-product-images/products/sek-tam-yag-sut-1-lt-1938.jpg",
+      "prices": [
+        { "marketId": "dima", "price": 32.90, "currency": "TRY" },
+        { "marketId": "erulku", "price": 31.50, "currency": "TRY" },
+        { "marketId": "kiler", "price": 33.50, "currency": "TRY" },
+        { "marketId": "macro", "price": 32.00, "currency": "TRY" },
+        { "marketId": "sokmar", "price": 30.90, "currency": "TRY" }
+      ]
+    },
+    {
+      "barcode": "8690504035237",
+      "productName": "Ülker Petit Beurre 400g",
+      "brand": "Ülker",
+      "category": "Snacks",
+      "imageUrl": "https://images.migros.com.tr/raw/upload/w_600,h_600,c_fit,f_auto,q_auto/fn-product-images/products/ulker-petit-beurre-biskuvi-400g-11286.jpg",
+      "prices": [
+        { "marketId": "dima", "price": 42.90, "currency": "TRY" },
+        { "marketId": "erulku", "price": 40.50, "currency": "TRY" },
+        { "marketId": "kiler", "price": 44.00, "currency": "TRY" },
+        { "marketId": "macro", "price": 41.90, "currency": "TRY" },
+        { "marketId": "sokmar", "price": 39.90, "currency": "TRY" }
+      ]
+    },
+    {
+      "barcode": "8690789000015",
+      "productName": "Pınar Yoğurt 1kg",
+      "brand": "Pınar",
+      "category": "Dairy",
+      "imageUrl": "https://images.migros.com.tr/raw/upload/w_600,h_600,c_fit,f_auto,q_auto/fn-product-images/products/pinar-yogurt-1-kg-1966.jpg",
+      "prices": [
+        { "marketId": "dima", "price": 54.90, "currency": "TRY" },
+        { "marketId": "erulku", "price": 52.00, "currency": "TRY" },
+        { "marketId": "kiler", "price": 56.50, "currency": "TRY" },
+        { "marketId": "macro", "price": 53.90, "currency": "TRY" },
+        { "marketId": "sokmar", "price": 51.90, "currency": "TRY" }
+      ]
+    },
+    {
+      "barcode": "8690526003127",
+      "productName": "Torku Toz Şeker 1kg",
+      "brand": "Torku",
+      "category": "Pantry",
+      "imageUrl": "https://images.migros.com.tr/raw/upload/w_600,h_600,c_fit,f_auto,q_auto/fn-product-images/products/torku-toz-seker-1-kg-3490.jpg",
+      "prices": [
+        { "marketId": "dima", "price": 38.90, "currency": "TRY" },
+        { "marketId": "erulku", "price": 37.00, "currency": "TRY" },
+        { "marketId": "kiler", "price": 40.00, "currency": "TRY" },
+        { "marketId": "macro", "price": 38.50, "currency": "TRY" },
+        { "marketId": "sokmar", "price": 36.90, "currency": "TRY" }
+      ]
+    },
+    {
+      "barcode": "8718114514451",
+      "productName": "Dove Sabun 100g",
+      "brand": "Dove",
+      "category": "Personal Care",
+      "imageUrl": "https://images.migros.com.tr/raw/upload/w_600,h_600,c_fit,f_auto,q_auto/fn-product-images/products/dove-sabun-100g-3295.jpg",
+      "prices": [
+        { "marketId": "dima", "price": 28.90, "currency": "TRY" },
+        { "marketId": "erulku", "price": 27.50, "currency": "TRY" },
+        { "marketId": "kiler", "price": 29.90, "currency": "TRY" },
+        { "marketId": "macro", "price": 28.00, "currency": "TRY" },
+        { "marketId": "sokmar", "price": 26.90, "currency": "TRY" }
+      ]
+    },
+    {
+      "barcode": "8690637011016",
+      "productName": "Bingo Çamaşır Deterjanı 2.5kg",
+      "brand": "Bingo",
+      "category": "Cleaning",
+      "imageUrl": "https://images.migros.com.tr/raw/upload/w_600,h_600,c_fit,f_auto,q_auto/fn-product-images/products/bingo-matik-camasir-deterjan-2500g-1176.jpg",
+      "prices": [
+        { "marketId": "dima", "price": 149.90, "currency": "TRY" },
+        { "marketId": "erulku", "price": 145.00, "currency": "TRY" },
+        { "marketId": "kiler", "price": 154.00, "currency": "TRY" },
+        { "marketId": "macro", "price": 147.90, "currency": "TRY" },
+        { "marketId": "sokmar", "price": 143.90, "currency": "TRY" }
+      ]
+    },
+    {
+      "barcode": "8690526830032",
+      "productName": "Torku Makarna Spagetti 500g",
+      "brand": "Torku",
+      "category": "Pantry",
+      "imageUrl": "https://images.migros.com.tr/raw/upload/w_600,h_600,c_fit,f_auto,q_auto/fn-product-images/products/torku-spagetti-500g-3515.jpg",
+      "prices": [
+        { "marketId": "dima", "price": 22.90, "currency": "TRY" },
+        { "marketId": "erulku", "price": 21.50, "currency": "TRY" },
+        { "marketId": "kiler", "price": 23.90, "currency": "TRY" },
+        { "marketId": "macro", "price": 22.00, "currency": "TRY" },
+        { "marketId": "sokmar", "price": 20.90, "currency": "TRY" }
+      ]
+    },
+    {
+      "barcode": "8690504099464",
+      "productName": "Ülker Çokokrem 650g",
+      "brand": "Ülker",
+      "category": "Snacks",
+      "imageUrl": "https://images.migros.com.tr/raw/upload/w_600,h_600,c_fit,f_auto,q_auto/fn-product-images/products/ulker-cokokrem-650g-1490.jpg",
+      "prices": [
+        { "marketId": "dima", "price": 89.90, "currency": "TRY" },
+        { "marketId": "erulku", "price": 86.50, "currency": "TRY" },
+        { "marketId": "kiler", "price": 92.00, "currency": "TRY" },
+        { "marketId": "macro", "price": 88.90, "currency": "TRY" },
+        { "marketId": "sokmar", "price": 84.90, "currency": "TRY" }
+      ]
+    },
+    {
+      "barcode": "8690545003047",
+      "productName": "Pınar Kaşar Peyniri 400g",
+      "brand": "Pınar",
+      "category": "Dairy",
+      "imageUrl": "https://images.migros.com.tr/raw/upload/w_600,h_600,c_fit,f_auto,q_auto/fn-product-images/products/pinar-kasar-peyniri-400g-2004.jpg",
+      "prices": [
+        { "marketId": "dima", "price": 159.90, "currency": "TRY" },
+        { "marketId": "erulku", "price": 154.00, "currency": "TRY" },
+        { "marketId": "kiler", "price": 164.90, "currency": "TRY" },
+        { "marketId": "macro", "price": 157.00, "currency": "TRY" },
+        { "marketId": "sokmar", "price": 152.90, "currency": "TRY" }
+      ]
+    },
+    {
+      "barcode": "8690632042088",
+      "productName": "Coca-Cola Kutu 330ml",
+      "brand": "Coca-Cola",
+      "category": "Beverages",
+      "imageUrl": "https://images.migros.com.tr/raw/upload/w_600,h_600,c_fit,f_auto,q_auto/fn-product-images/products/coca-cola-330-ml-1286.jpg",
+      "prices": [
+        { "marketId": "dima", "price": 26.90, "currency": "TRY" },
+        { "marketId": "erulku", "price": 25.50, "currency": "TRY" },
+        { "marketId": "kiler", "price": 27.90, "currency": "TRY" },
+        { "marketId": "macro", "price": 26.00, "currency": "TRY" },
+        { "marketId": "sokmar", "price": 24.90, "currency": "TRY" }
+      ]
+    },
+    {
+      "barcode": "8690637029028",
+      "productName": "Pril Bulaşık Deterjanı 750ml",
+      "brand": "Pril",
+      "category": "Cleaning",
+      "imageUrl": "https://images.migros.com.tr/raw/upload/w_600,h_600,c_fit,f_auto,q_auto/fn-product-images/products/pril-bulasik-deterjani-750ml-2176.jpg",
+      "prices": [
+        { "marketId": "dima", "price": 64.90, "currency": "TRY" },
+        { "marketId": "erulku", "price": 62.00, "currency": "TRY" },
+        { "marketId": "kiler", "price": 67.00, "currency": "TRY" },
+        { "marketId": "macro", "price": 63.90, "currency": "TRY" },
+        { "marketId": "sokmar", "price": 61.50, "currency": "TRY" }
+      ]
+    },
+    {
+      "barcode": "8690748010020",
+      "productName": "Altınkılıç Beyaz Peynir 500g",
+      "brand": "Altınkılıç",
+      "category": "Dairy",
+      "imageUrl": "https://images.migros.com.tr/raw/upload/w_600,h_600,c_fit,f_auto,q_auto/fn-product-images/products/altinkilic-tam-yag-beyaz-peynir-500g-1047.jpg",
+      "prices": [
+        { "marketId": "dima", "price": 99.90, "currency": "TRY" },
+        { "marketId": "erulku", "price": 95.00, "currency": "TRY" },
+        { "marketId": "kiler", "price": 104.00, "currency": "TRY" },
+        { "marketId": "macro", "price": 97.90, "currency": "TRY" },
+        { "marketId": "sokmar", "price": 93.90, "currency": "TRY" }
+      ]
+    },
+    {
+      "barcode": "8690526082011",
+      "productName": "Torku Ayçiçek Yağı 5L",
+      "brand": "Torku",
+      "category": "Pantry",
+      "imageUrl": "https://images.migros.com.tr/raw/upload/w_600,h_600,c_fit,f_auto,q_auto/fn-product-images/products/torku-aycicek-yagi-5l-3493.jpg",
+      "prices": [
+        { "marketId": "dima", "price": 249.90, "currency": "TRY" },
+        { "marketId": "erulku", "price": 239.00, "currency": "TRY" },
+        { "marketId": "kiler", "price": 259.90, "currency": "TRY" },
+        { "marketId": "macro", "price": 244.90, "currency": "TRY" },
+        { "marketId": "sokmar", "price": 235.90, "currency": "TRY" }
+      ]
+    },
+    {
+      "barcode": "8690526003011",
+      "productName": "Torku Pirinç 1kg",
+      "brand": "Torku",
+      "category": "Pantry",
+      "imageUrl": "https://images.migros.com.tr/raw/upload/w_600,h_600,c_fit,f_auto,q_auto/fn-product-images/products/torku-pirinc-1kg-3510.jpg",
+      "prices": [
+        { "marketId": "dima", "price": 45.90, "currency": "TRY" },
+        { "marketId": "erulku", "price": 43.50, "currency": "TRY" },
+        { "marketId": "kiler", "price": 47.90, "currency": "TRY" },
+        { "marketId": "macro", "price": 44.90, "currency": "TRY" },
+        { "marketId": "sokmar", "price": 42.90, "currency": "TRY" }
+      ]
+    },
+    {
+      "barcode": "8690569010092",
+      "productName": "Fanta Portakal 1.5L",
+      "brand": "Fanta",
+      "category": "Beverages",
+      "imageUrl": "https://images.migros.com.tr/raw/upload/w_600,h_600,c_fit,f_auto,q_auto/fn-product-images/products/fanta-portakal-1-5-lt-1360.jpg",
+      "prices": [
+        { "marketId": "dima", "price": 38.90, "currency": "TRY" },
+        { "marketId": "erulku", "price": 37.00, "currency": "TRY" },
+        { "marketId": "kiler", "price": 40.90, "currency": "TRY" },
+        { "marketId": "macro", "price": 38.00, "currency": "TRY" },
+        { "marketId": "sokmar", "price": 36.50, "currency": "TRY" }
+      ]
+    },
+    {
+      "barcode": "8690637010019",
+      "productName": "Bingo Bulaşık Tableti 40 Adet",
+      "brand": "Bingo",
+      "category": "Cleaning",
+      "imageUrl": "https://images.migros.com.tr/raw/upload/w_600,h_600,c_fit,f_auto,q_auto/fn-product-images/products/bingo-bulasik-tableti-40-li-1177.jpg",
+      "prices": [
+        { "marketId": "dima", "price": 124.90, "currency": "TRY" },
+        { "marketId": "erulku", "price": 119.00, "currency": "TRY" },
+        { "marketId": "kiler", "price": 129.90, "currency": "TRY" },
+        { "marketId": "macro", "price": 122.00, "currency": "TRY" },
+        { "marketId": "sokmar", "price": 117.90, "currency": "TRY" }
+      ]
+    },
+    {
+      "barcode": "8690504034377",
+      "productName": "Ülker Hanımeller Bisküvi 175g",
+      "brand": "Ülker",
+      "category": "Snacks",
+      "imageUrl": "https://images.migros.com.tr/raw/upload/w_600,h_600,c_fit,f_auto,q_auto/fn-product-images/products/ulker-hanimeller-biskuvi-175g-2904.jpg",
+      "prices": [
+        { "marketId": "dima", "price": 24.90, "currency": "TRY" },
+        { "marketId": "erulku", "price": 23.50, "currency": "TRY" },
+        { "marketId": "kiler", "price": 25.90, "currency": "TRY" },
+        { "marketId": "macro", "price": 24.00, "currency": "TRY" },
+        { "marketId": "sokmar", "price": 22.90, "currency": "TRY" }
+      ]
+    }
+  ]
+}

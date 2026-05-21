@@ -17,13 +17,6 @@ class AdminDashboard extends StatefulWidget {
 class _AdminDashboardState extends State<AdminDashboard> {
   int _selectedIndex = 0;
 
-  void _onMenuSelect(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-  }
-
-  // _AdminDashboardState sınıfı içindeki build metodunu şu şekilde güncelleyin:
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -31,7 +24,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
       body: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _SideMenu(selectedIndex: _selectedIndex, onMenuClick: _onMenuSelect),
+          _SideMenu(
+            selectedIndex: _selectedIndex,
+            onMenuClick: (i) => setState(() => _selectedIndex = i),
+          ),
           Expanded(
             child: Column(
               children: [
@@ -42,11 +38,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Değişiklik BURADA: Seçili indekse göre widget gösterimi
                         if (_selectedIndex == 0) const _DashboardOverview(),
                         if (_selectedIndex == 1) const _AddProductForm(),
                         if (_selectedIndex == 2) const _UserManagementList(),
                         if (_selectedIndex == 3) const _ProductMaintenance(),
+                        if (_selectedIndex == 4)
+                          const _SupermarketManagement(),
+                        if (_selectedIndex == 5)
+                          const _NotificationModule(),
+                        if (_selectedIndex == 6) const _ServiceModule(),
                       ],
                     ),
                   ),
@@ -57,860 +57,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
         ],
       ),
     );
-  }
-}
-
-// --- ADD PRODUCT FORM (FULL DYNAMIC & INDEPENDENT VALIDATION) ---
-class _AddProductForm extends StatefulWidget {
-  const _AddProductForm();
-
-  @override
-  State<_AddProductForm> createState() => _AddProductFormState();
-}
-
-class _AddProductFormState extends State<_AddProductForm> {
-  // FORM KEYLERİ
-  final _marketFormKey = GlobalKey<FormState>();
-  final _productFormKey = GlobalKey<FormState>();
-
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-
-  // PRODUCT CONTROLLERS
-  final _barcodeCtrl = TextEditingController();
-  final _nameCtrl = TextEditingController();
-  final _brandCtrl = TextEditingController();
-  final _imageCtrl = TextEditingController();
-  final _priceCtrl = TextEditingController();
-
-  // MARKET CONTROLLERS
-  final _newMarketNameCtrl = TextEditingController();
-  final _newMarketLogoCtrl = TextEditingController();
-
-  String? _selectedCategory;
-  String? _selectedMarketId;
-
-  bool _isMarketLoading = false;
-  bool _isProductLoading = false;
-
-  // ================== EXCEL IMPORT ==================
-  Future<void> _importFromExcel() async {
-    // Mevcut kategorileri cache'e alıyoruz
-    final Set<String> existingCategories = {};
-    final categorySnapshot = await _firestore.collection('categories').get();
-
-    for (var doc in categorySnapshot.docs) {
-      existingCategories.add(doc['name'].toString().toLowerCase());
-    }
-    try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['xlsx'],
-        withData: true,
-      );
-      if (result == null) return;
-
-      final bytes = result.files.single.bytes!;
-      final excel = Excel.decodeBytes(bytes);
-      final sheet = excel.tables[excel.tables.keys.first]!;
-
-      final marketMap = await _loadMarketMap();
-      WriteBatch batch = _firestore.batch();
-      int successCount = 0;
-
-      final markets = [
-        "Dima",
-        "Erülkü Süpermarket",
-        "Kiler",
-        "Macro Supermarket",
-        "Şokmar",
-      ];
-
-      for (int i = 1; i < sheet.rows.length; i++) {
-        final row = sheet.rows[i];
-        if (row.isEmpty) continue;
-
-        final barcode = row[0]?.value?.toString().trim() ?? "";
-        if (barcode.isEmpty) continue;
-
-        final productName = row[1]?.value?.toString() ?? "";
-        final category = row[2]?.value?.toString() ?? "";
-        final brand = row[3]?.value?.toString() ?? "";
-        final imageUrl = row[4]?.value?.toString() ?? "";
-
-        final normalizedCategory = category.trim();
-        final categoryKey = normalizedCategory.toLowerCase();
-
-        // Eğer category Firestore'da yoksa otomatik oluştur
-        if (normalizedCategory.isNotEmpty &&
-            !existingCategories.contains(categoryKey)) {
-          final categoryId = normalizedCategory
-              .toLowerCase()
-              .replaceAll(' ', '_')
-              .replaceAll(RegExp(r'[^\w_]'), '');
-
-          batch.set(_firestore.collection('categories').doc(categoryId), {
-            'name': normalizedCategory,
-            'createdAt': FieldValue.serverTimestamp(),
-          });
-
-          existingCategories.add(categoryKey);
-        }
-
-        // PRODUCT
-        final productRef = _firestore.collection('products').doc(barcode);
-        batch.set(productRef, {
-          'barcode': barcode,
-          'productName': productName,
-          'category': category,
-          'brand': brand,
-          'imageUrl': imageUrl,
-          'createdAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
-
-        // PRICES
-        for (int m = 0; m < markets.length; m++) {
-          final cell = row.length > 5 + m ? row[5 + m] : null;
-          if (cell == null || cell.value == null) continue;
-
-          final price =
-              double.tryParse(cell.value.toString().replaceAll(',', '.')) ?? 0;
-          if (price <= 0) continue;
-
-          final marketId = marketMap[markets[m]];
-          if (marketId == null) continue;
-
-          final priceRef = _firestore
-              .collection('prices')
-              .doc("${barcode}_$marketId");
-
-          batch.set(priceRef, {
-            'productBarcode': barcode,
-            'marketId': marketId,
-            'price': price,
-            'currency': 'TRY',
-            'updatedAt': FieldValue.serverTimestamp(),
-          });
-
-          successCount++;
-        }
-      }
-
-      await batch.commit();
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("$successCount fiyat kaydı eklendi"),
-            backgroundColor: successCount > 0 ? Colors.green : Colors.orange,
-          ),
-        );
-      }
-    } catch (e) {
-      debugPrint("Excel import error: $e");
-    }
-  }
-
-  Future<Map<String, String>> _loadMarketMap() async {
-    final snapshot = await _firestore.collection('supermarkets').get();
-    final map = <String, String>{};
-    for (var doc in snapshot.docs) {
-      map[doc['name']] = doc.id;
-    }
-    return map;
-  }
-
-  // ================== MARKET EKLE ==================
-  Future<void> _addNewMarket() async {
-    if (!_marketFormKey.currentState!.validate()) return;
-
-    setState(() => _isMarketLoading = true);
-    try {
-      final marketId = "market_${DateTime.now().millisecondsSinceEpoch}";
-      await _firestore.collection('supermarkets').doc(marketId).set({
-        'marketId': marketId,
-        'name': _newMarketNameCtrl.text.trim(),
-        'logoUrl':
-            _newMarketLogoCtrl.text.trim().isEmpty
-                ? 'https://placehold.co/100x100?text=${_newMarketNameCtrl.text}'
-                : _newMarketLogoCtrl.text.trim(),
-        'city': 'Nicosia',
-      });
-
-      _newMarketNameCtrl.clear();
-      _newMarketLogoCtrl.clear();
-    } finally {
-      if (mounted) setState(() => _isMarketLoading = false);
-    }
-  }
-
-  // ================== MANUEL PRODUCT ==================
-  Future<void> _saveProduct() async {
-    if (!_productFormKey.currentState!.validate()) return;
-    if (_selectedMarketId == null) return;
-
-    setState(() => _isProductLoading = true);
-    try {
-      final barcode = _barcodeCtrl.text.trim();
-
-      await _firestore.collection('products').doc(barcode).set({
-        'barcode': barcode,
-        'productName': _nameCtrl.text.trim(),
-        'category': _selectedCategory,
-        'brand': _brandCtrl.text.trim(),
-        'imageUrl': _imageCtrl.text.trim(),
-        'createdAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-
-      await _firestore
-          .collection('prices')
-          .doc("${barcode}_$_selectedMarketId")
-          .set({
-            'productBarcode': barcode,
-            'marketId': _selectedMarketId,
-            'price': double.parse(_priceCtrl.text.trim()),
-            'currency': 'TRY',
-            'updatedAt': FieldValue.serverTimestamp(),
-          });
-
-      _clearProductForm();
-    } finally {
-      if (mounted) setState(() => _isProductLoading = false);
-    }
-  }
-
-  void _clearProductForm() {
-    _barcodeCtrl.clear();
-    _nameCtrl.clear();
-    _brandCtrl.clear();
-    _imageCtrl.clear();
-    _priceCtrl.clear();
-    _selectedMarketId = null;
-    _selectedCategory = null;
-    setState(() {});
-  }
-
-  // ================== BUILD ==================
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(32),
-      child: Column(
-        children: [
-          // MARKET FORM
-          Form(
-            key: _marketFormKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  "Quick Market Setup",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 12),
-
-                _buildTextField(
-                  "Market Name",
-                  _newMarketNameCtrl,
-                  icon: Icons.store,
-                ),
-                const SizedBox(height: 12),
-
-                _buildTextField(
-                  "Logo URL",
-                  _newMarketLogoCtrl,
-                  icon: Icons.link,
-                ),
-                const SizedBox(height: 12),
-
-                SizedBox(
-                  width: 200,
-                  child: ElevatedButton(
-                    onPressed: _isMarketLoading ? null : _addNewMarket,
-                    child: const Text("ADD MARKET"),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 32),
-          const Divider(),
-          const SizedBox(height: 32),
-
-          // PRODUCT FORM (❗️KAYBOLMAYAN KISIM)
-          Form(
-            key: _productFormKey,
-            child: Column(
-              children: [
-                _buildTextField("Barcode", _barcodeCtrl, icon: Icons.qr_code),
-                const SizedBox(height: 12),
-                _buildTextField(
-                  "Product Name",
-                  _nameCtrl,
-                  icon: Icons.shopping_bag,
-                ),
-                const SizedBox(height: 12),
-                _buildTextField("Brand", _brandCtrl),
-                const SizedBox(height: 12),
-                _buildTextField("Image URL", _imageCtrl),
-                const SizedBox(height: 12),
-                _buildTextField("Price", _priceCtrl),
-                const SizedBox(height: 20),
-
-                ElevatedButton.icon(
-                  icon: const Icon(Icons.upload_file),
-                  label: const Text("IMPORT FROM EXCEL"),
-                  onPressed: _importFromExcel,
-                ),
-                const SizedBox(height: 12),
-
-                ElevatedButton(
-                  onPressed: _isProductLoading ? null : _saveProduct,
-                  child: const Text("SAVE PRODUCT"),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ================== UI HELPERS ==================
-  InputDecoration _inputDecoration(String label, IconData icon) {
-    return InputDecoration(
-      labelText: label,
-      prefixIcon: Icon(icon),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-    );
-  }
-
-  Widget _buildTextField(
-    String label,
-    TextEditingController controller, {
-    IconData? icon,
-  }) {
-    return TextFormField(
-      controller: controller,
-      decoration: _inputDecoration(label, icon ?? Icons.text_fields),
-      validator: (v) => v == null || v.isEmpty ? "Required" : null,
-    );
-  }
-}
-
-// --- DASHBOARD WIDGETS ---
-
-class _DashboardOverview extends StatelessWidget {
-  const _DashboardOverview();
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const _OverviewSection(),
-        const SizedBox(height: 24),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(flex: 2, child: _RecentOrdersTable()),
-            const SizedBox(width: 24),
-            Expanded(flex: 1, child: _TopProductsList()),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-// --- 1. USER MANAGEMENT LIST (Kullanıcı Listeleme ve Yönetme) ---
-class _UserManagementList extends StatelessWidget {
-  const _UserManagementList();
-
-  Future<void> _deleteUser(
-    BuildContext context,
-    String uid,
-    String name,
-  ) async {
-    bool confirm = await showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text("Delete User"),
-            content: Text(
-              "Are you sure you want to delete $name? This action cannot be undone.",
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text("Cancel"),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text(
-                  "Delete",
-                  style: TextStyle(color: Colors.red),
-                ),
-              ),
-            ],
-          ),
-    );
-
-    if (confirm) {
-      try {
-        await FirebaseFirestore.instance.collection('users').doc(uid).delete();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("User deleted successfully")),
-        );
-      } catch (e) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("Error: $e")));
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            "Customer Management",
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 20),
-          StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance.collection('users').snapshots(),
-            builder: (context, snapshot) {
-              if (snapshot.hasError) return const Text("Something went wrong");
-              if (snapshot.connectionState == ConnectionState.waiting)
-                return const Center(child: CircularProgressIndicator());
-
-              final users = snapshot.data!.docs;
-
-              return ListView.separated(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: users.length,
-                separatorBuilder: (context, index) => const Divider(),
-                itemBuilder: (context, index) {
-                  var user = users[index].data() as Map<String, dynamic>;
-                  String uid = users[index].id;
-                  String name = user['fullName'] ?? user['name'] ?? "User";
-                  String email = user['email'] ?? "No Email";
-
-                  return ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: const Color(0xFFE8F5E9),
-                      child: Text(
-                        name[0].toUpperCase(),
-                        style: const TextStyle(color: Color(0xFF2E7D32)),
-                      ),
-                    ),
-                    title: Text(
-                      name,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    subtitle: Text(email),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Özellik: Doğrulama Durumu
-                        Icon(
-                          user['isVerified'] == true
-                              ? Icons.verified
-                              : Icons.warning_amber_rounded,
-                          color:
-                              user['isVerified'] == true
-                                  ? Colors.blue
-                                  : Colors.orange,
-                          size: 20,
-                        ),
-                        const SizedBox(width: 8),
-                        // Özellik: Hesap Silme
-                        IconButton(
-                          icon: const Icon(
-                            Icons.delete_outline,
-                            color: Colors.red,
-                          ),
-                          onPressed: () => _deleteUser(context, uid, name),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ProductMaintenance extends StatelessWidget {
-  const _ProductMaintenance();
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // BAŞLIK BÖLÜMÜ
-        const Text(
-          "Product Inventory",
-          style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF1B5E20),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          "Manage catalog details, images, and inventory status.",
-          style: TextStyle(color: Colors.grey[600], fontSize: 14),
-        ),
-        const SizedBox(height: 24),
-
-        // ÜRÜN LİSTESİ
-        StreamBuilder<QuerySnapshot>(
-          stream:
-              FirebaseFirestore.instance
-                  .collection('products')
-                  .orderBy('createdAt', descending: true)
-                  .snapshots(),
-          builder: (context, snapshot) {
-            if (snapshot.hasError)
-              return const Center(child: Text("Something went wrong"));
-            if (snapshot.connectionState == ConnectionState.waiting)
-              return const Center(child: CircularProgressIndicator());
-
-            final products = snapshot.data!.docs;
-
-            if (products.isEmpty) {
-              return Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(40.0),
-                  child: Text(
-                    "No products found in the database.",
-                    style: TextStyle(color: Colors.grey[400]),
-                  ),
-                ),
-              );
-            }
-
-            return ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: products.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 16),
-              itemBuilder: (context, index) {
-                final doc = products[index];
-                final data = doc.data() as Map<String, dynamic>;
-
-                return _buildProductCard(context, doc, data);
-              },
-            );
-          },
-        ),
-      ],
-    );
-  }
-
-  // MODERN ÜRÜN KARTI TASARIMI
-  Widget _buildProductCard(
-    BuildContext context,
-    DocumentSnapshot doc,
-    Map<String, dynamic> data,
-  ) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          // ÜRÜN RESMİ (Sol taraf)
-          Container(
-            width: 70,
-            height: 70,
-            decoration: BoxDecoration(
-              color: Colors.grey[100],
-              borderRadius: BorderRadius.circular(12),
-              image:
-                  data['imageUrl'] != null &&
-                          data['imageUrl'].toString().isNotEmpty
-                      ? DecorationImage(
-                        image: NetworkImage(data['imageUrl']),
-                        fit: BoxFit.cover,
-                      )
-                      : null,
-            ),
-            child:
-                data['imageUrl'] == null || data['imageUrl'].toString().isEmpty
-                    ? const Icon(
-                      Icons.image_not_supported_outlined,
-                      color: Colors.grey,
-                    )
-                    : null,
-          ),
-          const SizedBox(width: 20),
-
-          // ÜRÜN DETAYLARI (Orta taraf)
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFE8F5E9),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        data['brand']?.toString().toUpperCase() ?? "GENERIC",
-                        style: const TextStyle(
-                          color: Color(0xFF2E7D32),
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      "#${data['barcode']}",
-                      style: TextStyle(color: Colors.grey[400], fontSize: 12),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  data['productName'] ?? "Unnamed Product",
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                ),
-                Text(
-                  data['category'] ?? "No Category",
-                  style: TextStyle(color: Colors.grey[500], fontSize: 13),
-                ),
-              ],
-            ),
-          ),
-
-          // AKSİYON BUTONLARI (Sağ taraf)
-          Row(
-            children: [
-              _buildIconButton(
-                icon: Icons.edit_outlined,
-                color: Colors.blue,
-                onTap: () => _showEditProductDialog(context, doc),
-              ),
-              const SizedBox(width: 8),
-              _buildIconButton(
-                icon: Icons.delete_outline_rounded,
-                color: Colors.red,
-                onTap: () => _deleteProductCascade(context, doc.id),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildIconButton({
-    required IconData icon,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return Material(
-      color: color.withOpacity(0.08),
-      borderRadius: BorderRadius.circular(10),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
-        child: Padding(
-          padding: const EdgeInsets.all(10.0),
-          child: Icon(icon, color: color, size: 20),
-        ),
-      ),
-    );
-  }
-
-  // ÜRÜN DÜZENLEME MODALI (Güzelleştirilmiş)
-  void _showEditProductDialog(BuildContext context, DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
-    final nameCtrl = TextEditingController(text: data['productName']);
-    final brandCtrl = TextEditingController(text: data['brand']);
-    final imageCtrl = TextEditingController(text: data['imageUrl']);
-
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-            title: const Text(
-              "Update Product",
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildDialogField(
-                  nameCtrl,
-                  "Product Name",
-                  Icons.shopping_cart_outlined,
-                ),
-                const SizedBox(height: 12),
-                _buildDialogField(
-                  brandCtrl,
-                  "Brand",
-                  Icons.branding_watermark_outlined,
-                ),
-                const SizedBox(height: 12),
-                _buildDialogField(imageCtrl, "Image URL", Icons.link_outlined),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text("Cancel"),
-              ),
-              ElevatedButton(
-                onPressed: () async {
-                  await doc.reference.update({
-                    'productName': nameCtrl.text.trim(),
-                    'brand': brandCtrl.text.trim(),
-                    'imageUrl': imageCtrl.text.trim(),
-                  });
-                  if (context.mounted) Navigator.pop(context);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2E7D32),
-                ),
-                child: const Text("Save Changes"),
-              ),
-            ],
-          ),
-    );
-  }
-
-  Widget _buildDialogField(
-    TextEditingController ctrl,
-    String label,
-    IconData icon,
-  ) {
-    return TextField(
-      controller: ctrl,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon, size: 20),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 12,
-        ),
-      ),
-    );
-  }
-
-  // KADEMELİ SİLME (Cascade Delete) MANTIĞI
-  Future<void> _deleteProductCascade(
-    BuildContext context,
-    String barcode,
-  ) async {
-    bool confirm = await _showConfirmDialog(context);
-    if (!confirm) return;
-
-    final firestore = FirebaseFirestore.instance;
-
-    try {
-      WriteBatch batch = firestore.batch();
-
-      // 1. Ürüne bağlı fiyat kayıtlarını bul ve sil
-      var pricesSnapshot =
-          await firestore
-              .collection('prices')
-              .where('productBarcode', isEqualTo: barcode)
-              .get();
-      for (var priceDoc in pricesSnapshot.docs) {
-        batch.delete(priceDoc.reference);
-      }
-
-      // 2. Ürünün kendisini sil
-      batch.delete(firestore.collection('products').doc(barcode));
-
-      await batch.commit();
-
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Product and associated prices removed."),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
-      }
-    } catch (e) {
-      debugPrint("Deletion error: $e");
-    }
-  }
-
-  Future<bool> _showConfirmDialog(BuildContext context) async {
-    return await showDialog(
-          context: context,
-          builder:
-              (c) => AlertDialog(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                title: const Text("Delete Product?"),
-                content: const Text(
-                  "All pricing data for this product across all markets will also be deleted.",
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(c, false),
-                    child: const Text("Keep it"),
-                  ),
-                  TextButton(
-                    onPressed: () => Navigator.pop(c, true),
-                    child: const Text(
-                      "Delete Everything",
-                      style: TextStyle(
-                        color: Colors.red,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-        ) ??
-        false;
   }
 }
 
@@ -923,15 +69,15 @@ class _SideMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 250,
+      width: 240,
       color: Colors.white,
       child: Column(
         children: [
           Container(
-            height: 80,
+            height: 72,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+              border: Border(bottom: BorderSide(color: Colors.grey.shade100)),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -940,18 +86,19 @@ class _SideMenu extends StatelessWidget {
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     color: const Color(0xFFE8F5E9),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Icon(
                     Icons.qr_code_scanner,
                     color: Color(0xFF2E7D32),
+                    size: 20,
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 10),
                 const Text(
                   'ScanWiser',
                   style: TextStyle(
-                    fontSize: 20,
+                    fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: Color(0xFF1B5E20),
                   ),
@@ -959,46 +106,34 @@ class _SideMenu extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 20),
-          _DrawerListTile(
-            title: "Dashboard",
-            icon: Icons.dashboard_rounded,
-            isSelected: selectedIndex == 0,
-            press: () => onMenuClick(0),
-          ),
-          _DrawerListTile(
-            title: "Users",
-            icon: Icons.people_alt_rounded,
-            isSelected: selectedIndex == 2, // Seçili olma durumu eklendi
-            press: () => onMenuClick(2), // Tıklama fonksiyonu bağlandı
-          ),
-          _DrawerListTile(
-            title: "Add Product",
-            icon: Icons.add_circle_outline,
-            isSelected: selectedIndex == 1,
-            press: () => onMenuClick(1),
-          ),
-          _DrawerListTile(
-            title: "Manage Products",
-            icon: Icons.inventory_2_outlined,
-            isSelected: selectedIndex == 3,
-            press: () => onMenuClick(3),
-          ),
-
+          const SizedBox(height: 8),
+          _tile('Dashboard', Icons.dashboard_rounded, 0),
+          _tile('Add Product', Icons.add_circle_outline, 1),
+          _tile('Customers', Icons.people_alt_rounded, 2),
+          _tile('Products', Icons.inventory_2_outlined, 3),
+          _tile('Supermarkets', Icons.store_mall_directory_outlined, 4),
+          _tile('Notifications', Icons.notifications_outlined, 5),
+          _tile('Services', Icons.settings_outlined, 6),
           const Spacer(),
-          const Divider(),
+          const Divider(height: 1),
           _DrawerListTile(
-            title: "Logout",
+            title: 'Logout',
             icon: Icons.logout_rounded,
             color: Colors.red,
-            press: () {
-              Navigator.pushReplacementNamed(context, '/login');
-            },
+            press: () => Navigator.pushReplacementNamed(context, '/login'),
           ),
-
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
         ],
       ),
+    );
+  }
+
+  Widget _tile(String title, IconData icon, int index) {
+    return _DrawerListTile(
+      title: title,
+      icon: icon,
+      isSelected: selectedIndex == index,
+      press: () => onMenuClick(index),
     );
   }
 }
@@ -1025,7 +160,7 @@ class _DrawerListTile extends StatelessWidget {
       leading: Icon(
         icon,
         color: color ?? (isSelected ? const Color(0xFF2E7D32) : Colors.grey),
-        size: 22,
+        size: 20,
       ),
       title: Text(
         title,
@@ -1034,11 +169,13 @@ class _DrawerListTile extends StatelessWidget {
               color ??
               (isSelected ? const Color(0xFF2E7D32) : Colors.grey[700]),
           fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+          fontSize: 14,
         ),
       ),
       selected: isSelected,
       selectedTileColor: const Color(0xFFE8F5E9),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 24),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
     );
   }
 }
@@ -1049,14 +186,13 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 80,
-      padding: const EdgeInsets.symmetric(horizontal: 24),
+      height: 72,
+      padding: const EdgeInsets.symmetric(horizontal: 28),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            // ignore: deprecated_member_use
-            color: Colors.grey.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.04),
             offset: const Offset(0, 4),
             blurRadius: 10,
           ),
@@ -1065,16 +201,33 @@ class _Header extends StatelessWidget {
       child: Row(
         children: [
           Text(
-            "Admin Panel",
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            'Admin Panel',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.bold,
               color: Colors.black87,
             ),
           ),
           const Spacer(),
-          const CircleAvatar(
-            backgroundColor: Color(0xFFE8F5E9),
-            child: Icon(Icons.person, color: Color(0xFF2E7D32)),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFE8F5E9),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.admin_panel_settings, color: Color(0xFF2E7D32), size: 18),
+                SizedBox(width: 6),
+                Text(
+                  'Administrator',
+                  style: TextStyle(
+                    color: Color(0xFF2E7D32),
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -1082,137 +235,98 @@ class _Header extends StatelessWidget {
   }
 }
 
-class _OverviewSection extends StatelessWidget {
-  const _OverviewSection();
+class _DashboardOverview extends StatelessWidget {
+  const _DashboardOverview();
 
   @override
   Widget build(BuildContext context) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        const Text(
+          'Dashboard',
+          style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Welcome back, Admin',
+          style: TextStyle(color: Colors.grey[500], fontSize: 14),
+        ),
+        const SizedBox(height: 24),
+        Row(
+          children: [
+            Expanded(
+              child: StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance.collection('users').snapshots(),
+                builder: (_, snap) => _StatCard(
+                  title: 'Total Users',
+                  value: snap.data?.docs.length.toString() ?? '...',
+                  icon: Icons.people_outline,
+                  color: Colors.blue,
+                  items: snap.data?.docs
+                      .map((d) => (d.data() as Map)['fullName']?.toString() ?? 'User')
+                      .take(3)
+                      .toList() ?? [],
+                  hasMore: (snap.data?.docs.length ?? 0) > 3,
+                ),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance.collection('products').snapshots(),
+                builder: (_, snap) => _StatCard(
+                  title: 'Total Products',
+                  value: snap.data?.docs.length.toString() ?? '...',
+                  icon: Icons.inventory_2_outlined,
+                  color: Colors.orange,
+                  items: snap.data?.docs
+                      .map((d) => (d.data() as Map)['productName']?.toString() ?? 'Product')
+                      .take(3)
+                      .toList() ?? [],
+                  hasMore: (snap.data?.docs.length ?? 0) > 3,
+                ),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance.collection('supermarkets').snapshots(),
+                builder: (_, snap) => _StatCard(
+                  title: 'Active Markets',
+                  value: snap.data?.docs.length.toString() ?? '...',
+                  icon: Icons.store_mall_directory_outlined,
+                  color: Colors.green,
+                  items: snap.data?.docs
+                      .map((d) => (d.data() as Map)['name']?.toString() ?? 'Market')
+                      .toList() ?? [],
+                ),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance.collection('categories').snapshots(),
+                builder: (_, snap) => _StatCard(
+                  title: 'Categories',
+                  value: snap.data?.docs.length.toString() ?? '...',
+                  icon: Icons.category_outlined,
+                  color: Colors.purple,
+                  items: snap.data?.docs
+                      .map((d) => (d.data() as Map)['name']?.toString() ?? 'Category')
+                      .toList() ?? [],
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 1. KULLANICILAR (Sayı + Liste Özeti)
-            Expanded(
-              child: StreamBuilder<QuerySnapshot>(
-                stream:
-                    FirebaseFirestore.instance.collection('users').snapshots(),
-                builder: (context, snapshot) {
-                  final docs = snapshot.data?.docs ?? [];
-                  List<String> names =
-                      docs
-                          .map(
-                            (d) =>
-                                (d.data() as Map<String, dynamic>)['fullName']
-                                    ?.toString() ??
-                                "User",
-                          )
-                          .take(3)
-                          .toList();
-                  return _StatCard(
-                    title: "Total Users",
-                    value: docs.length.toString(),
-                    icon: Icons.people_outline,
-                    color: Colors.blue,
-                    items: names,
-                    hasMore: docs.length > 3,
-                  );
-                },
-              ),
-            ),
-            const SizedBox(width: 16),
-
-            // 2. ÜRÜNLER (Sayı + Liste Özeti)
-            Expanded(
-              child: StreamBuilder<QuerySnapshot>(
-                stream:
-                    FirebaseFirestore.instance
-                        .collection('products')
-                        .snapshots(),
-                builder: (context, snapshot) {
-                  final docs = snapshot.data?.docs ?? [];
-                  List<String> names =
-                      docs
-                          .map(
-                            (d) =>
-                                (d.data()
-                                        as Map<String, dynamic>)['productName']
-                                    ?.toString() ??
-                                "Product",
-                          )
-                          .take(3)
-                          .toList();
-                  return _StatCard(
-                    title: "Total Products",
-                    value: docs.length.toString(),
-                    icon: Icons.inventory_2_outlined,
-                    color: Colors.orange,
-                    items: names,
-                    hasMore: docs.length > 3,
-                  );
-                },
-              ),
-            ),
-            const SizedBox(width: 16),
-
-            // 3. MARKETLER (Tüm Market İsimleri)
-            Expanded(
-              child: StreamBuilder<QuerySnapshot>(
-                stream:
-                    FirebaseFirestore.instance
-                        .collection('supermarkets')
-                        .snapshots(),
-                builder: (context, snapshot) {
-                  final docs = snapshot.data?.docs ?? [];
-                  List<String> names =
-                      docs
-                          .map(
-                            (d) =>
-                                (d.data() as Map<String, dynamic>)['name']
-                                    ?.toString() ??
-                                "Market",
-                          )
-                          .toList();
-                  return _StatCard(
-                    title: "Active Markets",
-                    value: docs.length.toString(),
-                    icon: Icons.store_mall_directory_outlined,
-                    color: Colors.green,
-                    items: names,
-                  );
-                },
-              ),
-            ),
-            const SizedBox(width: 16),
-
-            // 4. KATEGORİLER (Tüm Kategori İsimleri)
-            Expanded(
-              child: StreamBuilder<QuerySnapshot>(
-                stream:
-                    FirebaseFirestore.instance
-                        .collection('categories')
-                        .snapshots(),
-                builder: (context, snapshot) {
-                  final docs = snapshot.data?.docs ?? [];
-                  List<String> names =
-                      docs
-                          .map(
-                            (d) =>
-                                (d.data() as Map<String, dynamic>)['name']
-                                    ?.toString() ??
-                                "Category",
-                          )
-                          .toList();
-                  return _StatCard(
-                    title: "Categories",
-                    value: docs.length.toString(),
-                    icon: Icons.category_outlined,
-                    color: Colors.purple,
-                    items: names,
-                  );
-                },
-              ),
-            ),
+            Expanded(flex: 3, child: _RecentProductsTable()),
+            const SizedBox(width: 24),
+            Expanded(flex: 2, child: _RecentUsersWidget()),
           ],
         ),
       ],
@@ -1237,62 +351,6 @@ class _StatCard extends StatelessWidget {
     this.hasMore = false,
   });
 
-  // --- GELİŞMİŞ SİLME MANTIĞI (KADEMELİ SİLME) ---
-  // İdari panel gereksinimlerine göre market ve kategorileri kademeli olarak silebilir
-  void _quickDelete(String type, String name) async {
-    final firestore = FirebaseFirestore.instance;
-    String collection =
-        type == "Active Markets" ? "supermarkets" : "categories";
-
-    try {
-      // 1. KADEMELİ SİLME: Eğer bir KATEGORİ siliniyorsa, ona bağlı ürünleri ve fiyatları temizle
-      if (type == "Categories") {
-        // Silinecek kategoriye ait ürünleri bul
-        var productsSnapshot =
-            await firestore
-                .collection('products')
-                .where('category', isEqualTo: name)
-                .get();
-
-        WriteBatch batch = firestore.batch();
-
-        for (var productDoc in productsSnapshot.docs) {
-          String barcode = productDoc.id;
-
-          // A) Ürüne ait tüm fiyat kayıtlarını bul ve sil
-          var pricesSnapshot =
-              await firestore
-                  .collection('prices')
-                  .where('productBarcode', isEqualTo: barcode)
-                  .get();
-
-          for (var priceDoc in pricesSnapshot.docs) {
-            batch.delete(priceDoc.reference);
-          }
-
-          // B) Ürünün kendisini sil
-          batch.delete(productDoc.reference);
-        }
-
-        // Tüm ürün ve fiyat silme işlemlerini toplu olarak onayla
-        await batch.commit();
-      }
-
-      // 2. ANA ÖĞEYİ SİL (Market veya Kategori)
-      var snap =
-          await firestore
-              .collection(collection)
-              .where('name', isEqualTo: name)
-              .get();
-
-      for (var doc in snap.docs) {
-        await doc.reference.delete();
-      }
-    } catch (e) {
-      debugPrint("Kademeli silme hatası: $e");
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -1302,8 +360,7 @@ class _StatCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            // ignore: deprecated_member_use
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -1312,112 +369,66 @@ class _StatCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Üst Bilgi Satırı: İkon ve Sayısal Değer
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
+                  color: color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(icon, color: color, size: 24),
+                child: Icon(icon, color: color, size: 22),
               ),
               Text(
                 value,
                 style: const TextStyle(
-                  fontSize: 22,
+                  fontSize: 24,
                   fontWeight: FontWeight.bold,
                   color: Colors.black87,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          // Kart Başlığı (Örn: Total Users, Active Markets)
+          const SizedBox(height: 10),
           Text(
             title,
             style: TextStyle(
               color: Colors.grey[600],
               fontWeight: FontWeight.w600,
-              fontSize: 14,
+              fontSize: 13,
             ),
           ),
-          const Divider(height: 24),
-
-          // İsimlerin Listelendiği Alan (Badge Sistemi)
+          const Divider(height: 20),
           Wrap(
             spacing: 6,
             runSpacing: 6,
             children: [
               ...items.map(
                 (name) => Container(
-                  padding: const EdgeInsets.only(
-                    left: 8,
-                    right: 4,
-                    top: 4,
-                    bottom: 4,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.05),
+                    color: color.withValues(alpha: 0.07),
                     borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: color.withOpacity(0.1)),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // İsim Metni
-                      Flexible(
-                        child: Text(
-                          name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: color,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      // Hızlı Silme Butonu (Market ve Kategoriler için Aktif)
-                      if (title == "Active Markets" || title == "Categories")
-                        GestureDetector(
-                          onTap: () => _quickDelete(title, name),
-                          child: Icon(
-                            Icons.close,
-                            size: 14,
-                            color: color.withOpacity(0.5),
-                          ),
-                        ),
-                    ],
+                  child: Text(
+                    name,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: color,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
               ),
-              // Eğer liste sınırlanmışsa devamı olduğunu belirtir
               if (hasMore)
-                Padding(
-                  padding: const EdgeInsets.only(top: 4.0),
-                  child: Text(
-                    "...",
-                    style: TextStyle(color: color, fontWeight: FontWeight.bold),
-                  ),
-                ),
+                Text('...', style: TextStyle(color: color, fontWeight: FontWeight.bold)),
             ],
           ),
-          // Veri yoksa gösterilecek mesaj
           if (items.isEmpty)
-            const Padding(
-              padding: EdgeInsets.only(top: 8.0),
-              child: Text(
-                "No data available yet",
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey,
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
+            Text(
+              'No data yet',
+              style: TextStyle(fontSize: 12, color: Colors.grey[400], fontStyle: FontStyle.italic),
             ),
         ],
       ),
@@ -1425,50 +436,1269 @@ class _StatCard extends StatelessWidget {
   }
 }
 
-class _RecentOrdersTable extends StatelessWidget {
+class _RecentProductsTable extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 400,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
       ),
-      child: const Column(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            "Recent Activity",
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          const Text('Recent Products', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 16),
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('products')
+                .orderBy('createdAt', descending: true)
+                .limit(5)
+                .snapshots(),
+            builder: (context, snap) {
+              if (!snap.hasData) return const Center(child: CircularProgressIndicator());
+              final docs = snap.data!.docs;
+              if (docs.isEmpty) return const Text('No products yet', style: TextStyle(color: Colors.grey));
+              return Column(
+                children: docs.map((d) {
+                  final data = d.data() as Map<String, dynamic>;
+                  return ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF5F7FA),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.shopping_bag_outlined, color: Colors.grey, size: 20),
+                    ),
+                    title: Text(
+                      data['productName'] ?? 'Unknown',
+                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                    ),
+                    subtitle: Text(data['category'] ?? '', style: const TextStyle(fontSize: 12)),
+                    trailing: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE8F5E9),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        data['brand'] ?? 'Generic',
+                        style: const TextStyle(fontSize: 10, color: Color(0xFF2E7D32)),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              );
+            },
           ),
-          SizedBox(height: 24),
-          Expanded(child: Center(child: Text("No data available"))),
         ],
       ),
     );
   }
 }
 
-class _TopProductsList extends StatelessWidget {
+class _RecentUsersWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 400,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
       ),
-      child: const Column(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            "Top Products",
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          const Text('Recent Users', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 16),
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('users')
+                .orderBy('createdAt', descending: true)
+                .limit(5)
+                .snapshots(),
+            builder: (context, snap) {
+              if (!snap.hasData) return const Center(child: CircularProgressIndicator());
+              final docs = snap.data!.docs;
+              if (docs.isEmpty) return const Text('No users yet', style: TextStyle(color: Colors.grey));
+              return Column(
+                children: docs.map((d) {
+                  final data = d.data() as Map<String, dynamic>;
+                  final name = (data['fullName'] ?? data['name'] ?? 'User').toString();
+                  return ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: CircleAvatar(
+                      backgroundColor: const Color(0xFFE8F5E9),
+                      radius: 18,
+                      child: Text(
+                        name.isNotEmpty ? name[0].toUpperCase() : 'U',
+                        style: const TextStyle(color: Color(0xFF2E7D32), fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    title: Text(name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                    subtitle: Text(data['email'] ?? '', style: const TextStyle(fontSize: 11)),
+                    trailing: Icon(
+                      data['isVerified'] == true ? Icons.verified : Icons.pending_outlined,
+                      size: 16,
+                      color: data['isVerified'] == true ? Colors.blue : Colors.orange,
+                    ),
+                  );
+                }).toList(),
+              );
+            },
           ),
-          SizedBox(height: 24),
-          Expanded(child: Center(child: Text("No data available"))),
+        ],
+      ),
+    );
+  }
+}
+
+class _AddProductForm extends StatefulWidget {
+  const _AddProductForm();
+
+  @override
+  State<_AddProductForm> createState() => _AddProductFormState();
+}
+
+class _AddProductFormState extends State<_AddProductForm> {
+  final _productFormKey = GlobalKey<FormState>();
+  final _firestore = FirebaseFirestore.instance;
+
+  final _barcodeCtrl = TextEditingController();
+  final _nameCtrl = TextEditingController();
+  final _brandCtrl = TextEditingController();
+  final _imageCtrl = TextEditingController();
+  final _priceCtrl = TextEditingController();
+
+  String? _selectedCategory;
+  String? _selectedMarketId;
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _barcodeCtrl.dispose();
+    _nameCtrl.dispose();
+    _brandCtrl.dispose();
+    _imageCtrl.dispose();
+    _priceCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _importFromExcel() async {
+    final Set<String> existingCategories = {};
+    final categorySnapshot = await _firestore.collection('categories').get();
+    for (var doc in categorySnapshot.docs) {
+      existingCategories.add(doc['name'].toString().toLowerCase());
+    }
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['xlsx'],
+        withData: true,
+      );
+      if (result == null) return;
+
+      final Uint8List bytes = result.files.single.bytes!;
+      final excel = Excel.decodeBytes(bytes);
+      final sheet = excel.tables[excel.tables.keys.first]!;
+      final marketMap = await _loadMarketMap();
+      WriteBatch batch = _firestore.batch();
+      int successCount = 0;
+      final markets = ['Dima', 'Erülkü Süpermarket', 'Kiler', 'Macro Supermarket', 'Şokmar'];
+
+      for (int i = 1; i < sheet.rows.length; i++) {
+        final row = sheet.rows[i];
+        if (row.isEmpty) continue;
+        final barcode = row[0]?.value?.toString().trim() ?? '';
+        if (barcode.isEmpty) continue;
+
+        final productName = row[1]?.value?.toString() ?? '';
+        final category = row[2]?.value?.toString() ?? '';
+        final brand = row[3]?.value?.toString() ?? '';
+        final imageUrl = row[4]?.value?.toString() ?? '';
+        final normalizedCategory = category.trim();
+        final categoryKey = normalizedCategory.toLowerCase();
+
+        if (normalizedCategory.isNotEmpty && !existingCategories.contains(categoryKey)) {
+          final categoryId = normalizedCategory
+              .toLowerCase()
+              .replaceAll(' ', '_')
+              .replaceAll(RegExp(r'[^\w_]'), '');
+          batch.set(_firestore.collection('categories').doc(categoryId), {
+            'name': normalizedCategory,
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+          existingCategories.add(categoryKey);
+        }
+
+        batch.set(
+          _firestore.collection('products').doc(barcode),
+          {
+            'barcode': barcode,
+            'productName': productName,
+            'category': category,
+            'brand': brand,
+            'imageUrl': imageUrl,
+            'createdAt': FieldValue.serverTimestamp(),
+          },
+          SetOptions(merge: true),
+        );
+
+        for (int m = 0; m < markets.length; m++) {
+          final cell = row.length > 5 + m ? row[5 + m] : null;
+          if (cell?.value == null) continue;
+          final price = double.tryParse(cell!.value.toString().replaceAll(',', '.')) ?? 0;
+          if (price <= 0) continue;
+          final marketId = marketMap[markets[m]];
+          if (marketId == null) continue;
+          batch.set(_firestore.collection('prices').doc('${barcode}_$marketId'), {
+            'productBarcode': barcode,
+            'marketId': marketId,
+            'price': price,
+            'currency': 'TRY',
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+          successCount++;
+        }
+      }
+
+      await batch.commit();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('$successCount price records imported'),
+            backgroundColor: successCount > 0 ? Colors.green : Colors.orange,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Excel import error: $e');
+    }
+  }
+
+  Future<Map<String, String>> _loadMarketMap() async {
+    final snapshot = await _firestore.collection('supermarkets').get();
+    return {for (var doc in snapshot.docs) doc['name'].toString(): doc.id};
+  }
+
+  Future<void> _saveProduct() async {
+    if (!_productFormKey.currentState!.validate()) return;
+    if (_selectedMarketId == null || _selectedCategory == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a category and market')),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    try {
+      final barcode = _barcodeCtrl.text.trim();
+      await _firestore.collection('products').doc(barcode).set({
+        'barcode': barcode,
+        'productName': _nameCtrl.text.trim(),
+        'category': _selectedCategory,
+        'brand': _brandCtrl.text.trim(),
+        'imageUrl': _imageCtrl.text.trim(),
+        'createdAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      await _firestore.collection('prices').doc('${barcode}_$_selectedMarketId').set({
+        'productBarcode': barcode,
+        'marketId': _selectedMarketId,
+        'price': double.parse(_priceCtrl.text.trim()),
+        'currency': 'TRY',
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      _barcodeCtrl.clear();
+      _nameCtrl.clear();
+      _brandCtrl.clear();
+      _imageCtrl.clear();
+      _priceCtrl.clear();
+      setState(() {
+        _selectedMarketId = null;
+        _selectedCategory = null;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Product saved'), backgroundColor: Colors.green),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(28),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Add Product', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 24),
+          Form(
+            key: _productFormKey,
+            child: Column(
+              children: [
+                _field('Barcode', _barcodeCtrl, Icons.qr_code),
+                const SizedBox(height: 14),
+                _field('Product Name', _nameCtrl, Icons.shopping_bag_outlined),
+                const SizedBox(height: 14),
+                _field('Brand', _brandCtrl, Icons.branding_watermark_outlined),
+                const SizedBox(height: 14),
+                _field('Image URL', _imageCtrl, Icons.image_outlined, required: false),
+                const SizedBox(height: 14),
+                _field('Price (TRY)', _priceCtrl, Icons.price_change_outlined,
+                    keyboardType: TextInputType.number),
+                const SizedBox(height: 14),
+                StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance.collection('categories').orderBy('name').snapshots(),
+                  builder: (context, snap) {
+                    final items = snap.data?.docs ?? [];
+                    return DropdownButtonFormField<String>(
+                      initialValue: _selectedCategory,
+                      decoration: _deco('Category', Icons.category_outlined),
+                      items: items
+                          .map((d) => DropdownMenuItem(value: d['name'].toString(), child: Text(d['name'].toString())))
+                          .toList(),
+                      onChanged: (v) => setState(() => _selectedCategory = v),
+                      validator: (v) => v == null ? 'Required' : null,
+                    );
+                  },
+                ),
+                const SizedBox(height: 14),
+                StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance.collection('supermarkets').snapshots(),
+                  builder: (context, snap) {
+                    final items = snap.data?.docs ?? [];
+                    return DropdownButtonFormField<String>(
+                      initialValue: _selectedMarketId,
+                      decoration: _deco('Supermarket', Icons.store_outlined),
+                      items: items
+                          .map((d) => DropdownMenuItem(value: d.id, child: Text(d['name'].toString())))
+                          .toList(),
+                      onChanged: (v) => setState(() => _selectedMarketId = v),
+                      validator: (v) => v == null ? 'Required' : null,
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.upload_file),
+                  label: const Text('Import Excel'),
+                  onPressed: _importFromExcel,
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    side: const BorderSide(color: Color(0xFF2E7D32)),
+                    foregroundColor: const Color(0xFF2E7D32),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.save_outlined),
+                  label: _isLoading
+                      ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : const Text('Save Product'),
+                  onPressed: _isLoading ? null : _saveProduct,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2E7D32),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _field(String label, TextEditingController ctrl, IconData icon,
+      {TextInputType? keyboardType, bool required = true}) {
+    return TextFormField(
+      controller: ctrl,
+      keyboardType: keyboardType,
+      decoration: _deco(label, icon),
+      validator: required ? (v) => (v == null || v.isEmpty) ? 'Required' : null : null,
+    );
+  }
+
+  InputDecoration _deco(String label, IconData icon) {
+    return InputDecoration(
+      labelText: label,
+      prefixIcon: Icon(icon, size: 20),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    );
+  }
+}
+
+class _UserManagementList extends StatelessWidget {
+  const _UserManagementList();
+
+  Future<void> _deleteUser(BuildContext context, String uid, String name) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Delete User'),
+        content: Text('Delete $name? This cannot be undone.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true) {
+      await FirebaseFirestore.instance.collection('users').doc(uid).delete();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Customer Management', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 20),
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance.collection('users').snapshots(),
+            builder: (context, snap) {
+              if (!snap.hasData) return const Center(child: CircularProgressIndicator());
+              final users = snap.data!.docs;
+              return ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: users.length,
+                separatorBuilder: (_, __) => const Divider(height: 1),
+                itemBuilder: (context, i) {
+                  final data = users[i].data() as Map<String, dynamic>;
+                  final uid = users[i].id;
+                  final name = data['fullName'] ?? data['name'] ?? 'User';
+                  return ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: const Color(0xFFE8F5E9),
+                      child: Text(
+                        name[0].toUpperCase(),
+                        style: const TextStyle(color: Color(0xFF2E7D32), fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    title: Text(name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                    subtitle: Text(data['email'] ?? ''),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          data['isVerified'] == true ? Icons.verified : Icons.warning_amber_rounded,
+                          color: data['isVerified'] == true ? Colors.blue : Colors.orange,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline, color: Colors.red),
+                          onPressed: () => _deleteUser(context, uid, name),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProductMaintenance extends StatelessWidget {
+  const _ProductMaintenance();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Product Inventory', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 4),
+        Text('Manage all products and their prices.', style: TextStyle(color: Colors.grey[500])),
+        const SizedBox(height: 24),
+        StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance.collection('products').orderBy('createdAt', descending: true).snapshots(),
+          builder: (context, snap) {
+            if (!snap.hasData) return const Center(child: CircularProgressIndicator());
+            final products = snap.data!.docs;
+            if (products.isEmpty) {
+              return Center(child: Text('No products found.', style: TextStyle(color: Colors.grey[400])));
+            }
+            return ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: products.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              itemBuilder: (context, i) => _ProductCard(doc: products[i]),
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class _ProductCard extends StatelessWidget {
+  final DocumentSnapshot doc;
+  const _ProductCard({required this.doc});
+
+  Future<void> _delete(BuildContext context) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Delete Product?'),
+        content: const Text('All pricing data will also be deleted.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(c, true),
+            child: const Text('Delete', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    ) ?? false;
+    if (!confirm) return;
+
+    final db = FirebaseFirestore.instance;
+    final batch = db.batch();
+    final prices = await db.collection('prices').where('productBarcode', isEqualTo: doc.id).get();
+    for (var p in prices.docs) { batch.delete(p.reference); }
+    batch.delete(doc.reference);
+    await batch.commit();
+  }
+
+  void _edit(BuildContext context) {
+    final data = doc.data() as Map<String, dynamic>;
+    final nameCtrl = TextEditingController(text: data['productName']);
+    final brandCtrl = TextEditingController(text: data['brand']);
+    final imageCtrl = TextEditingController(text: data['imageUrl']);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Edit Product', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _dialogField(nameCtrl, 'Product Name', Icons.shopping_cart_outlined),
+            const SizedBox(height: 10),
+            _dialogField(brandCtrl, 'Brand', Icons.branding_watermark_outlined),
+            const SizedBox(height: 10),
+            _dialogField(imageCtrl, 'Image URL', Icons.link_outlined),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () async {
+              await doc.reference.update({
+                'productName': nameCtrl.text.trim(),
+                'brand': brandCtrl.text.trim(),
+                'imageUrl': imageCtrl.text.trim(),
+              });
+              if (ctx.mounted) Navigator.pop(ctx);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2E7D32)),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _dialogField(TextEditingController ctrl, String label, IconData icon) {
+    return TextField(
+      controller: ctrl,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, size: 18),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final data = doc.data() as Map<String, dynamic>;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 3))],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF5F7FA),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: data['imageUrl'] != null && data['imageUrl'].toString().isNotEmpty
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.network(data['imageUrl'], fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) => const Icon(Icons.image_not_supported_outlined, color: Colors.grey)),
+                  )
+                : const Icon(Icons.image_not_supported_outlined, color: Colors.grey),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(color: const Color(0xFFE8F5E9), borderRadius: BorderRadius.circular(6)),
+                    child: Text(
+                      data['brand']?.toString().toUpperCase() ?? 'GENERIC',
+                      style: const TextStyle(color: Color(0xFF2E7D32), fontSize: 10, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text('#${data['barcode']}', style: TextStyle(color: Colors.grey[400], fontSize: 11)),
+                ]),
+                const SizedBox(height: 4),
+                Text(data['productName'] ?? 'Unnamed', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                Text(data['category'] ?? '', style: TextStyle(color: Colors.grey[500], fontSize: 12)),
+              ],
+            ),
+          ),
+          Row(
+            children: [
+              _iconBtn(Icons.edit_outlined, Colors.blue, () => _edit(context)),
+              const SizedBox(width: 8),
+              _iconBtn(Icons.delete_outline_rounded, Colors.red, () => _delete(context)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _iconBtn(IconData icon, Color color, VoidCallback onTap) {
+    return Material(
+      color: color.withValues(alpha: 0.08),
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Padding(padding: const EdgeInsets.all(10), child: Icon(icon, color: color, size: 18)),
+      ),
+    );
+  }
+}
+
+class _SupermarketManagement extends StatefulWidget {
+  const _SupermarketManagement();
+
+  @override
+  State<_SupermarketManagement> createState() => _SupermarketManagementState();
+}
+
+class _SupermarketManagementState extends State<_SupermarketManagement> {
+  final _nameCtrl = TextEditingController();
+  final _logoCtrl = TextEditingController();
+  final _cityCtrl = TextEditingController();
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _logoCtrl.dispose();
+    _cityCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _addMarket() async {
+    if (_nameCtrl.text.trim().isEmpty) return;
+    setState(() => _isLoading = true);
+    try {
+      final id = 'market_${DateTime.now().millisecondsSinceEpoch}';
+      await FirebaseFirestore.instance.collection('supermarkets').doc(id).set({
+        'marketId': id,
+        'name': _nameCtrl.text.trim(),
+        'logoUrl': _logoCtrl.text.trim().isEmpty
+            ? 'https://placehold.co/100x100?text=${Uri.encodeComponent(_nameCtrl.text.trim())}'
+            : _logoCtrl.text.trim(),
+        'city': _cityCtrl.text.trim().isEmpty ? 'Nicosia' : _cityCtrl.text.trim(),
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      _nameCtrl.clear();
+      _logoCtrl.clear();
+      _cityCtrl.clear();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Supermarket added'), backgroundColor: Colors.green),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _deleteMarket(BuildContext context, String id, String name) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Delete Supermarket?'),
+        content: Text('Delete $name? All prices linked to this store will remain.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(c, true),
+            child: const Text('Delete', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    ) ?? false;
+    if (confirm) {
+      await FirebaseFirestore.instance.collection('supermarkets').doc(id).delete();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Supermarket Management', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 4),
+        Text('Add and manage supermarkets in the system.', style: TextStyle(color: Colors.grey[500])),
+        const SizedBox(height: 24),
+        Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Add New Supermarket', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(child: _buildInput('Market Name *', _nameCtrl, Icons.store_outlined)),
+                  const SizedBox(width: 14),
+                  Expanded(child: _buildInput('City', _cityCtrl, Icons.location_city_outlined)),
+                ],
+              ),
+              const SizedBox(height: 14),
+              _buildInput('Logo URL (optional)', _logoCtrl, Icons.image_outlined),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: 200,
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.add, size: 18),
+                  label: _isLoading
+                      ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : const Text('Add Supermarket'),
+                  onPressed: _isLoading ? null : _addMarket,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2E7D32),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+        Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('All Supermarkets', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance.collection('supermarkets').snapshots(),
+                builder: (context, snap) {
+                  if (!snap.hasData) return const Center(child: CircularProgressIndicator());
+                  final docs = snap.data!.docs;
+                  if (docs.isEmpty) {
+                    return Text('No supermarkets added yet.', style: TextStyle(color: Colors.grey[400]));
+                  }
+                  return ListView.separated(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: docs.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemBuilder: (context, i) {
+                      final data = docs[i].data() as Map<String, dynamic>;
+                      final id = docs[i].id;
+                      final logoUrl = data['logoUrl']?.toString() ?? '';
+                      return ListTile(
+                        contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                        leading: Container(
+                          width: 52,
+                          height: 52,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF5F7FA),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: logoUrl.isNotEmpty
+                              ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: Image.network(logoUrl, fit: BoxFit.contain,
+                                      errorBuilder: (_, __, ___) => const Icon(Icons.store, color: Colors.grey)),
+                                )
+                              : const Icon(Icons.store, color: Colors.grey),
+                        ),
+                        title: Text(data['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+                        subtitle: Text(data['city'] ?? '', style: const TextStyle(fontSize: 12)),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.delete_outline, color: Colors.red),
+                          onPressed: () => _deleteMarket(context, id, data['name'] ?? ''),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInput(String label, TextEditingController ctrl, IconData icon) {
+    return TextField(
+      controller: ctrl,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, size: 20),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      ),
+    );
+  }
+}
+
+class _NotificationModule extends StatefulWidget {
+  const _NotificationModule();
+
+  @override
+  State<_NotificationModule> createState() => _NotificationModuleState();
+}
+
+class _NotificationModuleState extends State<_NotificationModule> {
+  final _titleCtrl = TextEditingController();
+  final _bodyCtrl = TextEditingController();
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _titleCtrl.dispose();
+    _bodyCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _sendNotification() async {
+    if (_titleCtrl.text.trim().isEmpty || _bodyCtrl.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill in title and message')),
+      );
+      return;
+    }
+    setState(() => _isLoading = true);
+    try {
+      await FirebaseFirestore.instance.collection('notifications').add({
+        'title': _titleCtrl.text.trim(),
+        'body': _bodyCtrl.text.trim(),
+        'createdAt': FieldValue.serverTimestamp(),
+        'sentBy': 'admin',
+      });
+      _titleCtrl.clear();
+      _bodyCtrl.clear();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Notification sent to all users'), backgroundColor: Colors.green),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _deleteNotification(String id) async {
+    await FirebaseFirestore.instance.collection('notifications').doc(id).delete();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Notification Module', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 4),
+        Text('Send announcements and alerts to all users.', style: TextStyle(color: Colors.grey[500])),
+        const SizedBox(height: 24),
+        Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Send New Notification', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _titleCtrl,
+                decoration: InputDecoration(
+                  labelText: 'Notification Title',
+                  prefixIcon: const Icon(Icons.title_outlined, size: 20),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                ),
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: _bodyCtrl,
+                maxLines: 4,
+                decoration: InputDecoration(
+                  labelText: 'Message',
+                  prefixIcon: const Padding(
+                    padding: EdgeInsets.only(bottom: 56),
+                    child: Icon(Icons.message_outlined, size: 20),
+                  ),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: 220,
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.send_rounded, size: 18),
+                  label: _isLoading
+                      ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : const Text('Send to All Users'),
+                  onPressed: _isLoading ? null : _sendNotification,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2E7D32),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+        Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Sent Notifications', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('notifications')
+                    .orderBy('createdAt', descending: true)
+                    .snapshots(),
+                builder: (context, snap) {
+                  if (!snap.hasData) return const Center(child: CircularProgressIndicator());
+                  final docs = snap.data!.docs;
+                  if (docs.isEmpty) {
+                    return Text('No notifications sent yet.', style: TextStyle(color: Colors.grey[400]));
+                  }
+                  return ListView.separated(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: docs.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemBuilder: (context, i) {
+                      final data = docs[i].data() as Map<String, dynamic>;
+                      final id = docs[i].id;
+                      Timestamp? ts = data['createdAt'];
+                      String time = '';
+                      if (ts != null) {
+                        final d = ts.toDate();
+                        time = '${d.day}/${d.month}/${d.year}';
+                      }
+                      return ListTile(
+                        leading: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE8F5E9),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.notifications_active_rounded, color: Color(0xFF2E7D32), size: 20),
+                        ),
+                        title: Text(data['title'] ?? '', style: const TextStyle(fontWeight: FontWeight.w600)),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(data['body'] ?? '', maxLines: 2, overflow: TextOverflow.ellipsis),
+                            if (time.isNotEmpty)
+                              Text(time, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                          ],
+                        ),
+                        isThreeLine: true,
+                        trailing: IconButton(
+                          icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                          onPressed: () => _deleteNotification(id),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ServiceModule extends StatefulWidget {
+  const _ServiceModule();
+
+  @override
+  State<_ServiceModule> createState() => _ServiceModuleState();
+}
+
+class _ServiceModuleState extends State<_ServiceModule> {
+  final _categoryNameCtrl = TextEditingController();
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _categoryNameCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _addCategory() async {
+    final name = _categoryNameCtrl.text.trim();
+    if (name.isEmpty) return;
+    setState(() => _isLoading = true);
+    try {
+      final id = name.toLowerCase().replaceAll(' ', '_').replaceAll(RegExp(r'[^\w_]'), '');
+      await FirebaseFirestore.instance.collection('categories').doc(id).set({
+        'name': name,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      _categoryNameCtrl.clear();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Category added'), backgroundColor: Colors.green),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _deleteCategory(BuildContext context, String id, String name) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Delete Category?'),
+        content: Text('Delete "$name"? Products in this category will remain but lose their category.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(c, true),
+            child: const Text('Delete', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    ) ?? false;
+    if (confirm) {
+      await FirebaseFirestore.instance.collection('categories').doc(id).delete();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Service Module', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 4),
+        Text('Manage categories, product listings, and app services.', style: TextStyle(color: Colors.grey[500])),
+        const SizedBox(height: 24),
+        Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Category Management', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _categoryNameCtrl,
+                      decoration: InputDecoration(
+                        labelText: 'New Category Name',
+                        prefixIcon: const Icon(Icons.category_outlined, size: 20),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.add, size: 18),
+                    label: _isLoading
+                        ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        : const Text('Add'),
+                    onPressed: _isLoading ? null : _addCategory,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2E7D32),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance.collection('categories').orderBy('name').snapshots(),
+                builder: (context, snap) {
+                  if (!snap.hasData) return const Center(child: CircularProgressIndicator());
+                  final docs = snap.data!.docs;
+                  if (docs.isEmpty) {
+                    return Text('No categories yet.', style: TextStyle(color: Colors.grey[400]));
+                  }
+                  return Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: docs.map((d) {
+                      final name = d['name'].toString();
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE8F5E9),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: const Color(0xFF2E7D32).withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(name, style: const TextStyle(color: Color(0xFF2E7D32), fontWeight: FontWeight.w600)),
+                            const SizedBox(width: 8),
+                            GestureDetector(
+                              onTap: () => _deleteCategory(context, d.id, name),
+                              child: const Icon(Icons.close, size: 14, color: Color(0xFF2E7D32)),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+        Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('App Services Status', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              _ServiceStatusTile(icon: Icons.qr_code_scanner_rounded, title: 'Barcode Scanning', status: 'Active'),
+              _ServiceStatusTile(icon: Icons.compare_arrows_rounded, title: 'Price Comparison', status: 'Active'),
+              _ServiceStatusTile(icon: Icons.notifications_active_rounded, title: 'Push Notifications', status: 'Active'),
+              _ServiceStatusTile(icon: Icons.favorite_rounded, title: 'Favorites & Wishlists', status: 'Active'),
+              _ServiceStatusTile(icon: Icons.search_rounded, title: 'Product Search', status: 'Active'),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ServiceStatusTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String status;
+
+  const _ServiceStatusTile({required this.icon, required this.title, required this.status});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFE8F5E9),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: const Color(0xFF2E7D32), size: 20),
+          ),
+          const SizedBox(width: 14),
+          Expanded(child: Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14))),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.green.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(width: 6, height: 6, decoration: const BoxDecoration(color: Colors.green, shape: BoxShape.circle)),
+                const SizedBox(width: 6),
+                Text(status, style: const TextStyle(color: Colors.green, fontSize: 12, fontWeight: FontWeight.w600)),
+              ],
+            ),
+          ),
         ],
       ),
     );
