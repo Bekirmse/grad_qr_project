@@ -6,6 +6,8 @@ import 'package:excel/excel.dart' hide Border;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../../services/api_price_service.dart';
 
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
@@ -47,6 +49,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                         if (_selectedIndex == 5)
                           const _NotificationModule(),
                         if (_selectedIndex == 6) const _ServiceModule(),
+                        if (_selectedIndex == 7) const _ApiMonitor(),
                       ],
                     ),
                   ),
@@ -114,6 +117,7 @@ class _SideMenu extends StatelessWidget {
           _tile('Supermarkets', Icons.store_mall_directory_outlined, 4),
           _tile('Notifications', Icons.notifications_outlined, 5),
           _tile('Services', Icons.settings_outlined, 6),
+          _tile('API Monitor', Icons.monitor_heart_outlined, 7),
           const Spacer(),
           const Divider(height: 1),
           _DrawerListTile(
@@ -1136,6 +1140,7 @@ class _SupermarketManagementState extends State<_SupermarketManagement> {
   final _nameCtrl = TextEditingController();
   final _logoCtrl = TextEditingController();
   final _cityCtrl = TextEditingController();
+  final _apiUrlCtrl = TextEditingController();
   bool _isLoading = false;
 
   @override
@@ -1143,6 +1148,7 @@ class _SupermarketManagementState extends State<_SupermarketManagement> {
     _nameCtrl.dispose();
     _logoCtrl.dispose();
     _cityCtrl.dispose();
+    _apiUrlCtrl.dispose();
     super.dispose();
   }
 
@@ -1158,11 +1164,13 @@ class _SupermarketManagementState extends State<_SupermarketManagement> {
             ? 'https://placehold.co/100x100?text=${Uri.encodeComponent(_nameCtrl.text.trim())}'
             : _logoCtrl.text.trim(),
         'city': _cityCtrl.text.trim().isEmpty ? 'Nicosia' : _cityCtrl.text.trim(),
+        'apiUrl': _apiUrlCtrl.text.trim(),
         'createdAt': FieldValue.serverTimestamp(),
       });
       _nameCtrl.clear();
       _logoCtrl.clear();
       _cityCtrl.clear();
+      _apiUrlCtrl.clear();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Supermarket added'), backgroundColor: Colors.green),
@@ -1171,6 +1179,52 @@ class _SupermarketManagementState extends State<_SupermarketManagement> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  Future<void> _editMarket(BuildContext context, DocumentSnapshot doc) async {
+    final data = doc.data() as Map<String, dynamic>;
+    final nameCtrl = TextEditingController(text: data['name']);
+    final apiCtrl = TextEditingController(text: data['apiUrl'] ?? '');
+    final logoCtrl = TextEditingController(text: data['logoUrl'] ?? '');
+    final cityCtrl = TextEditingController(text: data['city'] ?? '');
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Edit Supermarket', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildInput('Market Name', nameCtrl, Icons.store_outlined),
+              const SizedBox(height: 10),
+              _buildInput('API URL', apiCtrl, Icons.api_outlined),
+              const SizedBox(height: 10),
+              _buildInput('City', cityCtrl, Icons.location_city_outlined),
+              const SizedBox(height: 10),
+              _buildInput('Logo URL', logoCtrl, Icons.image_outlined),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () async {
+              await doc.reference.update({
+                'name': nameCtrl.text.trim(),
+                'apiUrl': apiCtrl.text.trim(),
+                'city': cityCtrl.text.trim(),
+                'logoUrl': logoCtrl.text.trim(),
+              });
+              if (ctx.mounted) Navigator.pop(ctx);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2E7D32)),
+            child: const Text('Save', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _deleteMarket(BuildContext context, String id, String name) async {
@@ -1217,6 +1271,16 @@ class _SupermarketManagementState extends State<_SupermarketManagement> {
                   const SizedBox(width: 14),
                   Expanded(child: _buildInput('City', _cityCtrl, Icons.location_city_outlined)),
                 ],
+              ),
+              const SizedBox(height: 14),
+              _buildInput('Market API URL *', _apiUrlCtrl, Icons.api_outlined),
+              const SizedBox(height: 6),
+              Padding(
+                padding: const EdgeInsets.only(left: 4),
+                child: Text(
+                  'e.g. https://kiler-api.onrender.com/api/market/kiler',
+                  style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                ),
               ),
               const SizedBox(height: 14),
               _buildInput('Logo URL (optional)', _logoCtrl, Icons.image_outlined),
@@ -1284,10 +1348,47 @@ class _SupermarketManagementState extends State<_SupermarketManagement> {
                               : const Icon(Icons.store, color: Colors.grey),
                         ),
                         title: Text(data['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
-                        subtitle: Text(data['city'] ?? '', style: const TextStyle(fontSize: 12)),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.delete_outline, color: Colors.red),
-                          onPressed: () => _deleteMarket(context, id, data['name'] ?? ''),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(data['city'] ?? '', style: const TextStyle(fontSize: 12)),
+                            if ((data['apiUrl'] ?? '').toString().isNotEmpty)
+                              Row(
+                                children: [
+                                  const Icon(Icons.api_outlined, size: 11, color: Color(0xFF2E7D32)),
+                                  const SizedBox(width: 4),
+                                  Expanded(
+                                    child: Text(
+                                      data['apiUrl'] ?? '',
+                                      style: const TextStyle(fontSize: 10, color: Color(0xFF2E7D32)),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              )
+                            else
+                              const Row(
+                                children: [
+                                  Icon(Icons.warning_amber_rounded, size: 11, color: Colors.orange),
+                                  SizedBox(width: 4),
+                                  Text('No API URL configured', style: TextStyle(fontSize: 10, color: Colors.orange)),
+                                ],
+                              ),
+                          ],
+                        ),
+                        isThreeLine: true,
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.edit_outlined, color: Colors.blue, size: 20),
+                              onPressed: () => _editMarket(context, docs[i]),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline, color: Colors.red),
+                              onPressed: () => _deleteMarket(context, id, data['name'] ?? ''),
+                            ),
+                          ],
                         ),
                       );
                     },
@@ -1701,6 +1802,270 @@ class _ServiceStatusTile extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _ApiMonitor extends StatefulWidget {
+  const _ApiMonitor();
+
+  @override
+  State<_ApiMonitor> createState() => _ApiMonitorState();
+}
+
+class _ApiMonitorState extends State<_ApiMonitor> {
+  List<Map<String, dynamic>> _products = [];
+  List<Map<String, dynamic>> _supermarkets = [];
+  List<String> _categories = [];
+  bool _isLoading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAll();
+  }
+
+  Future<void> _loadAll() async {
+    setState(() { _isLoading = true; _error = null; });
+    try {
+      final results = await Future.wait([
+        ApiPriceService.getAllProducts(),
+        ApiPriceService.getSupermarkets(),
+        ApiPriceService.getCategories(),
+      ]);
+      if (mounted) {
+        setState(() {
+          _products = results[0] as List<Map<String, dynamic>>;
+          _supermarkets = results[1] as List<Map<String, dynamic>>;
+          _categories = results[2] as List<String>;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() { _error = 'API unreachable: $e'; _isLoading = false; });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('API Monitor', style: GoogleFonts.poppins(fontSize: 24, fontWeight: FontWeight.bold)),
+                Text('Live data from Render price API.', style: GoogleFonts.poppins(color: Colors.grey[500], fontSize: 13)),
+              ],
+            ),
+            const Spacer(),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              label: Text('Refresh', style: GoogleFonts.poppins()),
+              onPressed: _loadAll,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF2E7D32),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+        if (_isLoading)
+          const Center(child: CircularProgressIndicator(color: Color(0xFF2E7D32)))
+        else if (_error != null)
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(16)),
+            child: Row(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.red),
+                const SizedBox(width: 12),
+                Expanded(child: Text(_error!, style: GoogleFonts.poppins(color: Colors.red))),
+              ],
+            ),
+          )
+        else ...[
+          Row(
+            children: [
+              _ApiStatCard(label: 'Products', value: '${_products.length}', icon: Icons.inventory_2_outlined, color: Colors.orange),
+              const SizedBox(width: 16),
+              _ApiStatCard(label: 'Supermarkets', value: '${_supermarkets.length}', icon: Icons.store_outlined, color: Colors.blue),
+              const SizedBox(width: 16),
+              _ApiStatCard(label: 'Categories', value: '${_categories.length}', icon: Icons.category_outlined, color: Colors.purple),
+            ],
+          ),
+          const SizedBox(height: 24),
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Supermarkets', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 16),
+                ..._supermarkets.map((m) => ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(color: const Color(0xFFF5F7FA), borderRadius: BorderRadius.circular(10)),
+                    child: m['logoUrl'] != null && m['logoUrl'].toString().isNotEmpty
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: Image.network(m['logoUrl'], fit: BoxFit.contain,
+                                errorBuilder: (_, __, ___) => const Icon(Icons.store, color: Colors.grey)),
+                          )
+                        : const Icon(Icons.store, color: Colors.grey),
+                  ),
+                  title: Text(m['name'] ?? '', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+                  subtitle: Text('ID: ${m['id'] ?? ''}', style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey)),
+                  trailing: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(color: const Color(0xFFE8F5E9), borderRadius: BorderRadius.circular(20)),
+                    child: Text('Active', style: GoogleFonts.poppins(color: const Color(0xFF2E7D32), fontSize: 11, fontWeight: FontWeight.w600)),
+                  ),
+                )),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Products & Prices', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 16),
+                ..._products.map((p) => _ApiProductTile(product: p)),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _ApiStatCard extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color color;
+
+  const _ApiStatCard({required this.label, required this.value, required this.icon, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 4))],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
+              child: Icon(icon, color: color, size: 22),
+            ),
+            const SizedBox(width: 14),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(value, style: GoogleFonts.poppins(fontSize: 22, fontWeight: FontWeight.bold, color: const Color(0xFF1A1A2E))),
+                Text(label, style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[500])),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ApiProductTile extends StatefulWidget {
+  final Map<String, dynamic> product;
+  const _ApiProductTile({required this.product});
+
+  @override
+  State<_ApiProductTile> createState() => _ApiProductTileState();
+}
+
+class _ApiProductTileState extends State<_ApiProductTile> {
+  bool _expanded = false;
+  List<Map<String, dynamic>> _prices = [];
+  bool _loadingPrices = false;
+
+  Future<void> _loadPrices() async {
+    if (_prices.isNotEmpty) { setState(() => _expanded = !_expanded); return; }
+    setState(() { _loadingPrices = true; _expanded = true; });
+    final result = await ApiPriceService.getProductWithPrices(widget.product['barcode'] ?? '');
+    if (mounted) {
+      setState(() {
+        _prices = result != null ? List<Map<String, dynamic>>.from(result['prices'] ?? []) : [];
+        _loadingPrices = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = widget.product;
+    return Column(
+      children: [
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(color: const Color(0xFFF5F7FA), borderRadius: BorderRadius.circular(10)),
+            child: p['imageUrl'] != null && p['imageUrl'].toString().isNotEmpty
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Image.network(p['imageUrl'], fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) => const Icon(Icons.shopping_bag_outlined, color: Colors.grey, size: 20)),
+                  )
+                : const Icon(Icons.shopping_bag_outlined, color: Colors.grey, size: 20),
+          ),
+          title: Text(p['productName'] ?? '', style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 13)),
+          subtitle: Text('${p['brand'] ?? ''} · ${p['category'] ?? ''}', style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey)),
+          trailing: IconButton(
+            icon: Icon(_expanded ? Icons.expand_less : Icons.expand_more, color: Colors.grey),
+            onPressed: _loadPrices,
+          ),
+        ),
+        if (_expanded) ...[
+          if (_loadingPrices)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: CircularProgressIndicator(color: Color(0xFF2E7D32), strokeWidth: 2),
+            )
+          else
+            ..._prices.map((pr) => Padding(
+              padding: const EdgeInsets.only(left: 60, bottom: 6),
+              child: Row(
+                children: [
+                  Expanded(child: Text(pr['marketName'] ?? '', style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[700]))),
+                  Text(
+                    '${double.tryParse(pr['price'].toString())?.toStringAsFixed(2) ?? '-'} ${pr['currency'] ?? 'TRY'}',
+                    style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600, color: const Color(0xFF2E7D32)),
+                  ),
+                ],
+              ),
+            )),
+        ],
+        const Divider(height: 1),
+      ],
     );
   }
 }
