@@ -5,12 +5,14 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../services/api_price_service.dart';
+import '../../services/market_api_service.dart';
+import 'purchasePage.dart';
 
 class ResultPage extends StatefulWidget {
   final String barcode;
+  final String city;
 
-  const ResultPage({super.key, required this.barcode});
+  const ResultPage({super.key, required this.barcode, this.city = 'All'});
 
   @override
   State<ResultPage> createState() => _ResultPageState();
@@ -20,27 +22,96 @@ class _ResultPageState extends State<ResultPage> {
   Map<String, dynamic>? _product;
   List<Map<String, dynamic>> _prices = [];
   bool _isLoading = true;
+  bool _isRefreshing = false;
   String? _errorMessage;
   bool _isFavorite = false;
+  bool _notFound = false;
+  String _selectedCity = 'All';
 
   final _user = FirebaseAuth.instance.currentUser;
+
+  static const List<String> _cities = ['All', 'Nicosia', 'Kyrenia', 'Famagusta'];
 
   @override
   void initState() {
     super.initState();
+    _selectedCity = widget.city;
     _fetchData();
   }
 
-  Future<void> _fetchData() async {
+  void _onCityChanged(String city) {
+    setState(() {
+      _selectedCity = city;
+      _notFound = false;
+      _isRefreshing = true;
+    });
+    _fetchData(isRefresh: true);
+  }
+
+  void _showCityPicker() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Select City', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 16),
+            ..._cities.map((city) => ListTile(
+              onTap: () {
+                Navigator.pop(ctx);
+                _onCityChanged(city);
+              },
+              title: Text(city, style: GoogleFonts.poppins(fontSize: 15)),
+              trailing: _selectedCity == city
+                  ? const Icon(Icons.check_circle_rounded, color: Color(0xFF2E7D32))
+                  : null,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              selectedTileColor: const Color(0xFFE8F5E9),
+              selected: _selectedCity == city,
+            )),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _fetchData({bool isRefresh = false}) async {
     if (!mounted) return;
-    setState(() => _isLoading = true);
+    if (!isRefresh) setState(() => _isLoading = true);
 
     final cleanBarcode = widget.barcode.trim();
+    debugPrint('ResultPage: barcode=$cleanBarcode city=${widget.city}');
 
     try {
-      final apiResult = await ApiPriceService.getProductWithPrices(cleanBarcode);
+      debugPrint('ResultPage: calling MarketApiService...');
+      final baseUrl = await MarketApiService.getBaseUrl();
+      debugPrint('ResultPage: baseUrl=$baseUrl');
 
-      if (apiResult != null) {
+      final cityResults = await MarketApiService.searchProductInCity(
+        cleanBarcode,
+        _selectedCity,
+      );
+      debugPrint('ResultPage: cityResults count=${cityResults.length}');
+
+      if (cityResults.isNotEmpty) {
+        FirebaseFirestore.instance.collection('scanLogs').add({
+          'barcode': cleanBarcode,
+          'productName': cityResults.first.name,
+          'city': _selectedCity,
+          'userEmail': _user?.email ?? 'guest',
+          'userId': _user?.uid ?? '',
+          'timestamp': FieldValue.serverTimestamp(),
+        });
+
         bool isFav = false;
         if (_user != null) {
           final favDoc =
@@ -52,80 +123,38 @@ class _ResultPageState extends State<ResultPage> {
                   .get();
           isFav = favDoc.exists;
         }
-
         if (mounted) {
           setState(() {
             _product = {
-              'productName': apiResult['productName'],
-              'brand': apiResult['brand'],
-              'category': apiResult['category'],
-              'imageUrl': apiResult['imageUrl'],
+              'productName': cityResults.first.name,
+              'brand': '',
+              'category': '',
+              'imageUrl': cityResults.first.photoUrl,
             };
-            _prices = List<Map<String, dynamic>>.from(apiResult['prices']);
+            _prices =
+                cityResults
+                    .map(
+                      (r) => {
+                        'marketName': r.marketName,
+                        'marketLogoUrl': '',
+                        'price': r.price,
+                        'currency': 'TRY',
+                      },
+                    )
+                    .toList();
             _isFavorite = isFav;
             _isLoading = false;
+            _isRefreshing = false;
           });
         }
         return;
       }
 
-      final productDoc =
-          await FirebaseFirestore.instance
-              .collection('products')
-              .doc(cleanBarcode)
-              .get();
-
-      if (!productDoc.exists) {
-        if (mounted) Navigator.pop(context, 'not_found');
-        return;
-      }
-
-      final priceSnapshot =
-          await FirebaseFirestore.instance
-              .collection('prices')
-              .where('productBarcode', isEqualTo: cleanBarcode)
-              .orderBy('price')
-              .get();
-
-      final List<Map<String, dynamic>> tempPrices = [];
-      for (final doc in priceSnapshot.docs) {
-        final priceData = Map<String, dynamic>.from(doc.data());
-        final marketId = priceData['marketId'] ?? '';
-        if (marketId.isNotEmpty) {
-          final marketDoc =
-              await FirebaseFirestore.instance
-                  .collection('supermarkets')
-                  .doc(marketId)
-                  .get();
-          if (marketDoc.exists) {
-            final m = marketDoc.data() as Map<String, dynamic>;
-            priceData['marketName'] = m['name'];
-            priceData['marketLogoUrl'] = m['logoUrl'];
-          } else {
-            priceData['marketName'] = 'Unknown Market';
-          }
-        }
-        tempPrices.add(priceData);
-      }
-
-      bool isFav = false;
-      if (_user != null) {
-        final favDoc =
-            await FirebaseFirestore.instance
-                .collection('users')
-                .doc(_user.uid)
-                .collection('favorites')
-                .doc(cleanBarcode)
-                .get();
-        isFav = favDoc.exists;
-      }
-
       if (mounted) {
         setState(() {
-          _product = productDoc.data() as Map<String, dynamic>;
-          _prices = tempPrices;
-          _isFavorite = isFav;
+          _notFound = true;
           _isLoading = false;
+          _isRefreshing = false;
         });
       }
     } catch (e) {
@@ -134,6 +163,7 @@ class _ResultPageState extends State<ResultPage> {
         setState(() {
           _errorMessage = 'An error occurred: $e';
           _isLoading = false;
+          _isRefreshing = false;
         });
       }
     }
@@ -178,35 +208,104 @@ class _ResultPageState extends State<ResultPage> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
-        backgroundColor: Color(0xFFF5F7FA),
-        body: Center(
-          child: CircularProgressIndicator(color: Color(0xFF2E7D32)),
+      return Scaffold(
+        backgroundColor: const Color(0xFFF5F7FA),
+        body: SafeArea(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  children: [
+                    GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 8)],
+                        ),
+                        child: const Icon(Icons.arrow_back_ios_new, size: 18, color: Color(0xFF1A1A2E)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(child: _ShimmerLoading()),
+            ],
+          ),
         ),
       );
     }
 
-    if (_errorMessage != null) {
+    if (_errorMessage != null || _notFound) {
       return Scaffold(
         backgroundColor: const Color(0xFFF5F7FA),
         appBar: AppBar(
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new),
-            onPressed: () => Navigator.pop(context),
+          backgroundColor: Colors.white,
+          elevation: 0,
+          leading: GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: Container(
+              margin: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 8)],
+              ),
+              child: const Icon(Icons.arrow_back_ios_new, color: Color(0xFF1A1A2E), size: 18),
+            ),
           ),
         ),
         body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline, size: 64, color: Colors.grey),
-              const SizedBox(height: 16),
-              Text(
-                _errorMessage!,
-                textAlign: TextAlign.center,
-                style: GoogleFonts.poppins(color: Colors.red),
-              ),
-            ],
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFEBEE),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.search_off_rounded, size: 64, color: Color(0xFFE53935)),
+                ),
+                const SizedBox(height: 24),
+                Text('Product Not Found',
+                    style: GoogleFonts.poppins(fontSize: 22, fontWeight: FontWeight.bold, color: const Color(0xFF1A1A2E))),
+                const SizedBox(height: 8),
+                Text(
+                  _notFound
+                      ? 'This barcode is not in our database yet.\nTry selecting a different city.'
+                      : _errorMessage!,
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey[600], height: 1.5),
+                ),
+                const SizedBox(height: 16),
+                Text('Barcode: ${widget.barcode}',
+                    style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey)),
+                const SizedBox(height: 32),
+                _CitySelector(
+                  selected: _selectedCity,
+                  cities: _cities,
+                  onChanged: _onCityChanged,
+                ),
+                const SizedBox(height: 20),
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.arrow_back_rounded),
+                  label: Text('Go Back', style: GoogleFonts.poppins()),
+                  onPressed: () => Navigator.pop(context),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF2E7D32),
+                    side: const BorderSide(color: Color(0xFF2E7D32)),
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       );
@@ -217,7 +316,9 @@ class _ResultPageState extends State<ResultPage> {
     final category = _product!['category']?.toString() ?? '';
     final brand = _product!['brand']?.toString() ?? '';
 
-    return Scaffold(
+    return Stack(
+      children: [
+      Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       body: CustomScrollView(
         slivers: [
@@ -383,10 +484,7 @@ class _ResultPageState extends State<ResultPage> {
                   const SizedBox(width: 8),
                   if (_prices.isNotEmpty)
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 2,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
                       decoration: BoxDecoration(
                         color: const Color(0xFFE8F5E9),
                         borderRadius: BorderRadius.circular(8),
@@ -400,6 +498,12 @@ class _ResultPageState extends State<ResultPage> {
                         ),
                       ),
                     ),
+                  const Spacer(),
+                  _CitySelector(
+                    selected: _selectedCity,
+                    cities: _cities,
+                    onChanged: _onCityChanged,
+                  ),
                 ],
               ),
             ),
@@ -429,7 +533,35 @@ class _ResultPageState extends State<ResultPage> {
             ),
         ],
       ),
-    );
+    ),
+      if (_isRefreshing)
+        Positioned.fill(
+          child: Container(
+            color: Colors.white.withValues(alpha: 0.6),
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 20)],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(
+                      width: 28, height: 28,
+                      child: CircularProgressIndicator(color: Color(0xFF2E7D32), strokeWidth: 2.5),
+                    ),
+                    const SizedBox(height: 12),
+                    Text('Updating prices...', style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w500, color: const Color(0xFF1A1A2E))),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+    ]);
   }
 
   Widget _buildPriceCard(Map<String, dynamic> priceData, bool isBest) {
@@ -438,7 +570,17 @@ class _ResultPageState extends State<ResultPage> {
     final marketName = priceData['marketName'] ?? 'Unknown Market';
     final logoUrl = priceData['marketLogoUrl']?.toString() ?? '';
 
-    return Container(
+    return GestureDetector(
+      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => PurchasePage(
+        productName: _product!['productName'] ?? 'Unknown',
+        barcode: widget.barcode,
+        price: price,
+        currency: currency,
+        marketName: marketName,
+        city: _selectedCity,
+        imageUrl: _product!['imageUrl'] ?? '',
+      ))),
+      child: Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -465,10 +607,7 @@ class _ResultPageState extends State<ResultPage> {
             width: 54,
             height: 54,
             decoration: BoxDecoration(
-              color:
-                  isBest
-                      ? const Color(0xFFE8F5E9)
-                      : const Color(0xFFF5F7FA),
+              color: isBest ? const Color(0xFFE8F5E9) : const Color(0xFFF5F7FA),
               shape: BoxShape.circle,
             ),
             child:
@@ -490,8 +629,7 @@ class _ResultPageState extends State<ResultPage> {
                     )
                     : Icon(
                       Icons.store_rounded,
-                      color:
-                          isBest ? const Color(0xFF2E7D32) : Colors.grey,
+                      color: isBest ? const Color(0xFF2E7D32) : Colors.grey,
                       size: 26,
                     ),
           ),
@@ -536,13 +674,147 @@ class _ResultPageState extends State<ResultPage> {
             style: GoogleFonts.poppins(
               fontSize: 20,
               fontWeight: FontWeight.w700,
-              color:
-                  isBest
-                      ? const Color(0xFF2E7D32)
-                      : const Color(0xFF1A1A2E),
+              color: isBest ? const Color(0xFF2E7D32) : const Color(0xFF1A1A2E),
             ),
           ),
         ],
+      ),
+      ),
+    );
+  }
+}
+
+class _CitySelector extends StatelessWidget {
+  final String selected;
+  final List<String> cities;
+  final ValueChanged<String> onChanged;
+
+  const _CitySelector({required this.selected, required this.cities, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => showModalBottomSheet(
+        context: context,
+        backgroundColor: Colors.transparent,
+        builder: (ctx) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Select City', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              ...cities.map((city) => ListTile(
+                onTap: () { Navigator.pop(ctx); onChanged(city); },
+                title: Text(city, style: GoogleFonts.poppins(fontSize: 15)),
+                trailing: selected == city
+                    ? const Icon(Icons.check_circle_rounded, color: Color(0xFF2E7D32))
+                    : null,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                selectedTileColor: const Color(0xFFE8F5E9),
+                selected: selected == city,
+              )),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: const Color(0xFFE3F2FD),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.location_on_rounded, size: 13, color: Colors.blue),
+            const SizedBox(width: 4),
+            Text(selected, style: GoogleFonts.poppins(fontSize: 12, color: Colors.blue, fontWeight: FontWeight.w600)),
+            const SizedBox(width: 4),
+            const Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: Colors.blue),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ShimmerLoading extends StatefulWidget {
+  @override
+  State<_ShimmerLoading> createState() => _ShimmerLoadingState();
+}
+
+class _ShimmerLoadingState extends State<_ShimmerLoading>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _anim;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200))
+      ..repeat();
+    _anim = Tween<double>(begin: -1.5, end: 2.0).animate(
+        CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _anim,
+      builder: (_, __) => SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _shimmerBox(width: double.infinity, height: 220, radius: 16),
+            const SizedBox(height: 20),
+            _shimmerBox(width: 100, height: 24, radius: 8),
+            const SizedBox(height: 10),
+            _shimmerBox(width: double.infinity, height: 32, radius: 8),
+            const SizedBox(height: 8),
+            _shimmerBox(width: 160, height: 20, radius: 6),
+            const SizedBox(height: 28),
+            _shimmerBox(width: 180, height: 24, radius: 8),
+            const SizedBox(height: 14),
+            _shimmerBox(width: double.infinity, height: 80, radius: 16),
+            const SizedBox(height: 12),
+            _shimmerBox(width: double.infinity, height: 80, radius: 16),
+            const SizedBox(height: 12),
+            _shimmerBox(width: double.infinity, height: 80, radius: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _shimmerBox({required double width, required double height, required double radius}) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(radius),
+        gradient: LinearGradient(
+          begin: Alignment(_anim.value - 1, 0),
+          end: Alignment(_anim.value, 0),
+          colors: const [
+            Color(0xFFE8E8E8),
+            Color(0xFFF5F5F5),
+            Color(0xFFE8E8E8),
+          ],
+        ),
       ),
     );
   }

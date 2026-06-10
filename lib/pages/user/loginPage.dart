@@ -156,9 +156,14 @@ class _LoginPageState extends State<LoginPage> {
 
   // Sosyal Medya Giriş Fonksiyonu
   void _socialLogin(String provider) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text("$provider login coming soon!")));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('$provider login coming soon!'),
+        backgroundColor: Colors.grey[700],
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
   }
 
   @override
@@ -173,7 +178,7 @@ class _LoginPageState extends State<LoginPage> {
             return SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 24.0),
               child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                constraints: BoxConstraints(minHeight: constraints.maxHeight + 20),
                 child: IntrinsicHeight(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,

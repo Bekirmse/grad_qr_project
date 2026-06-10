@@ -1,7 +1,5 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:grad_qr_project/pages/user/reset_password_page.dart';
 import 'firebase_options.dart';
@@ -21,15 +19,6 @@ import 'package:grad_qr_project/pages/user/favoritesPage.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-
-  if (!kIsWeb) {
-    await FirebaseAppCheck.instance.activate(
-      // ignore: deprecated_member_use
-      appleProvider: AppleProvider.deviceCheck,
-      // ignore: deprecated_member_use
-      androidProvider: AndroidProvider.debug,
-    );
-  }
 
   runApp(const MyApp());
 }
