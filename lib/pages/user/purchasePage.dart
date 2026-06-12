@@ -612,7 +612,7 @@ Future<void> _completePurchase(String lastFour) async {
                 child: Lottie.asset(
                   'assets/animations/purchase_complate.json',
                   fit: BoxFit.contain,
-                  repeat: false,
+                  repeat: true,
                 ),
               ),
               const SizedBox(height: 24),
