@@ -25,6 +25,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
     'Orders',
     'Users',
     'Scan Logs',
+    'Cancellations',
     'API Settings',
     'Notifications',
   ];
@@ -34,6 +35,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
     Icons.shopping_bag_rounded,
     Icons.people_alt_rounded,
     Icons.qr_code_scanner_rounded,
+    Icons.cancel_rounded,
     Icons.api_rounded,
     Icons.notifications_rounded,
   ];
@@ -49,8 +51,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
       case 3:
         return const _ScanLogs();
       case 4:
-        return const _ApiSettings();
+        return const _CancellationLogs();
       case 5:
+        return const _ApiSettings();
+      case 6:
         return const _Notifications();
       default:
         return const SizedBox.shrink();
@@ -1044,6 +1048,131 @@ class _ScanLogs extends StatelessWidget {
 
   String _fmt(DateTime d) =>
       '${d.day}/${d.month}/${d.year} ${d.hour}:${d.minute.toString().padLeft(2, '0')}';
+}
+
+class _CancellationLogs extends StatelessWidget {
+  const _CancellationLogs();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        centerTitle: true,
+        title: Text('Cancellation Logs', style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 18)),
+        elevation: 0,
+      ),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('cancellationLogs')
+            .orderBy('cancelledAt', descending: true)
+            .snapshots(),
+        builder: (_, snap) {
+          if (!snap.hasData) return const Center(child: CircularProgressIndicator(color: Color(0xFF2E7D32)));
+          if (snap.data!.docs.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.info_outline, size: 72, color: Colors.grey),
+                  const SizedBox(height: 16),
+                  Text('No cancellations', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600)),
+                ],
+              ),
+            );
+          }
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: snap.data!.docs.length,
+            itemBuilder: (_, i) {
+              final log = snap.data!.docs[i].data() as Map<String, dynamic>;
+              final date = (log['cancelledAt'] as Timestamp).toDate();
+
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.red[100]!),
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8)],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Order ID', style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey[600], fontWeight: FontWeight.w500)),
+                              Text(log['orderId'] ?? '', style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.red[700])),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.red[50],
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.red[200]!),
+                          ),
+                          child: Text('Cancelled', style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.red[700])),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('User Email', style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey[600], fontWeight: FontWeight.w500)),
+                            Text(log['userEmail'] ?? 'N/A', style: GoogleFonts.poppins(fontSize: 12)),
+                          ],
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text('Date', style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey[600], fontWeight: FontWeight.w500)),
+                            Text('${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}',
+                                style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[700])),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.red[50],
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.red[100]!),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Cancellation Reason', style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey[600], fontWeight: FontWeight.w500)),
+                          const SizedBox(height: 6),
+                          Text(log['reason'] ?? 'No reason provided', style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[800], height: 1.4)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
 }
 
 class _ApiSettings extends StatefulWidget {
