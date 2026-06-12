@@ -1,5 +1,6 @@
 // ignore_for_file: file_names
 
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -21,11 +22,13 @@ class _HomePageState extends State<HomePage> {
   final TextEditingController _searchController = TextEditingController();
   String _selectedCategory = "All";
   int _currentNavIndex = 0;
+  Timer? _discountCheckTimer;
 
   @override
   void initState() {
     super.initState();
     _checkFavoritesForDiscounts();
+    _startPeriodicDiscountCheck();
   }
 
   Future<String> _fetchUserName() async {
@@ -113,8 +116,15 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  void _startPeriodicDiscountCheck() {
+    _discountCheckTimer = Timer.periodic(const Duration(seconds: 60), (_) {
+      _checkFavoritesForDiscounts();
+    });
+  }
+
   @override
   void dispose() {
+    _discountCheckTimer?.cancel();
     _searchController.dispose();
     super.dispose();
   }
