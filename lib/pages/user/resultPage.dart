@@ -117,12 +117,28 @@ Future<void> _fetchData({bool isRefresh = false}) async {
           isFav = favDoc.exists;
         }
         if (mounted) {
+          final firebaseProduct = await FirebaseFirestore.instance
+              .collection('products')
+              .doc(cleanBarcode)
+              .get();
+
+          String realImageUrl = cityResults.first.photoUrl;
+          String brand = '';
+          String category = '';
+
+          if (firebaseProduct.exists) {
+            final data = firebaseProduct.data()!;
+            realImageUrl = data['imageUrl'] ?? realImageUrl;
+            brand = data['brand'] ?? '';
+            category = data['category'] ?? '';
+          }
+
           setState(() {
             _product = {
               'productName': cityResults.first.name,
-              'brand': '',
-              'category': '',
-              'imageUrl': cityResults.first.photoUrl,
+              'brand': brand,
+              'category': category,
+              'imageUrl': realImageUrl,
             };
             final priceList =
                 cityResults

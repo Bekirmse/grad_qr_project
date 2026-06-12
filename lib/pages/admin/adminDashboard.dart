@@ -40,13 +40,20 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   Widget _buildSection(int index) {
     switch (index) {
-      case 0: return const _Dashboard();
-      case 1: return const _Orders();
-      case 2: return const _Users();
-      case 3: return const _ScanLogs();
-      case 4: return const _ApiSettings();
-      case 5: return const _Notifications();
-      default: return const SizedBox.shrink();
+      case 0:
+        return const _Dashboard();
+      case 1:
+        return const _Orders();
+      case 2:
+        return const _Users();
+      case 3:
+        return const _ScanLogs();
+      case 4:
+        return const _ApiSettings();
+      case 5:
+        return const _Notifications();
+      default:
+        return const SizedBox.shrink();
     }
   }
 
@@ -64,27 +71,48 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 Container(
                   height: 70,
                   alignment: Alignment.center,
-                  decoration: BoxDecoration(border: Border(bottom: BorderSide(color: Colors.grey.shade100))),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(color: Colors.grey.shade100),
+                    ),
+                  ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Container(
                         padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(color: const Color(0xFFE8F5E9), borderRadius: BorderRadius.circular(10)),
-                        child: const Icon(Icons.qr_code_scanner, color: _green, size: 20),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE8F5E9),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(
+                          Icons.qr_code_scanner,
+                          color: _green,
+                          size: 20,
+                        ),
                       ),
                       const SizedBox(width: 10),
-                      Text('ScanWiser', style: GoogleFonts.poppins(fontSize: 17, fontWeight: FontWeight.bold, color: const Color(0xFF1B5E20))),
+                      Text(
+                        'ScanWiser',
+                        style: GoogleFonts.poppins(
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF1B5E20),
+                        ),
+                      ),
                     ],
                   ),
                 ),
                 const SizedBox(height: 8),
-                ...List.generate(_sections.length, (i) => _NavTile(
-                  title: _sections[i],
-                  icon: _icons[i],
-                  selected: _selectedIndex == i,
-                  onTap: () => setState(() => _selectedIndex = i),
-                )),
+                ...List.generate(
+                  _sections.length,
+                  (i) => _NavTile(
+                    title: _sections[i],
+                    icon: _icons[i],
+                    selected: _selectedIndex == i,
+                    onTap: () => setState(() => _selectedIndex = i),
+                  ),
+                ),
                 const Spacer(),
                 const Divider(height: 1),
                 _NavTile(
@@ -92,7 +120,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   icon: Icons.logout_rounded,
                   selected: false,
                   color: Colors.red,
-                  onTap: () => Navigator.pushReplacementNamed(context, '/login'),
+                  onTap:
+                      () => Navigator.pushReplacementNamed(context, '/login'),
                 ),
                 const SizedBox(height: 16),
               ],
@@ -107,17 +136,40 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   color: Colors.white,
                   child: Row(
                     children: [
-                      Text(_sections[_selectedIndex],
-                          style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.bold, color: const Color(0xFF1A1A2E))),
+                      Text(
+                        _sections[_selectedIndex],
+                        style: GoogleFonts.poppins(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF1A1A2E),
+                        ),
+                      ),
                       const Spacer(),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                        decoration: BoxDecoration(color: const Color(0xFFE8F5E9), borderRadius: BorderRadius.circular(20)),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE8F5E9),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
                         child: Row(
                           children: [
-                            const Icon(Icons.admin_panel_settings, color: _green, size: 16),
+                            const Icon(
+                              Icons.admin_panel_settings,
+                              color: _green,
+                              size: 16,
+                            ),
                             const SizedBox(width: 6),
-                            Text('Administrator', style: GoogleFonts.poppins(color: _green, fontWeight: FontWeight.w600, fontSize: 13)),
+                            Text(
+                              'Administrator',
+                              style: GoogleFonts.poppins(
+                                color: _green,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -146,7 +198,13 @@ class _NavTile extends StatelessWidget {
   final VoidCallback onTap;
   final Color? color;
 
-  const _NavTile({required this.title, required this.icon, required this.selected, required this.onTap, this.color});
+  const _NavTile({
+    required this.title,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+    this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -154,7 +212,14 @@ class _NavTile extends StatelessWidget {
     return ListTile(
       onTap: onTap,
       leading: Icon(icon, color: c, size: 20),
-      title: Text(title, style: GoogleFonts.poppins(color: c, fontWeight: selected ? FontWeight.w600 : FontWeight.normal, fontSize: 14)),
+      title: Text(
+        title,
+        style: GoogleFonts.poppins(
+          color: c,
+          fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+          fontSize: 14,
+        ),
+      ),
       selected: selected,
       selectedTileColor: const Color(0xFFE8F5E9),
       contentPadding: const EdgeInsets.symmetric(horizontal: 20),
@@ -171,7 +236,10 @@ class _Dashboard extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Welcome back, Admin', style: GoogleFonts.poppins(color: Colors.grey[500], fontSize: 14)),
+        Text(
+          'Welcome back, Admin',
+          style: GoogleFonts.poppins(color: Colors.grey[500], fontSize: 14),
+        ),
         const SizedBox(height: 20),
         Row(
           children: [
@@ -179,7 +247,8 @@ class _Dashboard extends StatelessWidget {
               title: 'Total Users',
               icon: Icons.people_outline,
               color: Colors.blue,
-              stream: FirebaseFirestore.instance.collection('users').snapshots(),
+              stream:
+                  FirebaseFirestore.instance.collection('users').snapshots(),
               valueBuilder: (snap) => snap.docs.length.toString(),
             ),
             const SizedBox(width: 16),
@@ -187,7 +256,8 @@ class _Dashboard extends StatelessWidget {
               title: 'Total Scans',
               icon: Icons.qr_code_scanner_rounded,
               color: Colors.orange,
-              stream: FirebaseFirestore.instance.collection('scanLogs').snapshots(),
+              stream:
+                  FirebaseFirestore.instance.collection('scanLogs').snapshots(),
               valueBuilder: (snap) => snap.docs.length.toString(),
             ),
             const SizedBox(width: 16),
@@ -195,7 +265,10 @@ class _Dashboard extends StatelessWidget {
               title: 'Notifications Sent',
               icon: Icons.notifications_outlined,
               color: Colors.purple,
-              stream: FirebaseFirestore.instance.collection('notifications').snapshots(),
+              stream:
+                  FirebaseFirestore.instance
+                      .collection('notifications')
+                      .snapshots(),
               valueBuilder: (snap) => snap.docs.length.toString(),
             ),
           ],
@@ -221,7 +294,13 @@ class _StatCard extends StatelessWidget {
   final Stream<QuerySnapshot> stream;
   final String Function(QuerySnapshot) valueBuilder;
 
-  const _StatCard({required this.title, required this.icon, required this.color, required this.stream, required this.valueBuilder});
+  const _StatCard({
+    required this.title,
+    required this.icon,
+    required this.color,
+    required this.stream,
+    required this.valueBuilder,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -231,28 +310,50 @@ class _StatCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 4))],
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
         child: StreamBuilder<QuerySnapshot>(
           stream: stream,
-          builder: (_, snap) => Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
-                child: Icon(icon, color: color, size: 22),
-              ),
-              const SizedBox(width: 14),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+          builder:
+              (_, snap) => Row(
                 children: [
-                  Text(snap.hasData ? valueBuilder(snap.data!) : '...',
-                      style: GoogleFonts.poppins(fontSize: 24, fontWeight: FontWeight.bold, color: const Color(0xFF1A1A2E))),
-                  Text(title, style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[500])),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(icon, color: color, size: 22),
+                  ),
+                  const SizedBox(width: 14),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        snap.hasData ? valueBuilder(snap.data!) : '...',
+                        style: GoogleFonts.poppins(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF1A1A2E),
+                        ),
+                      ),
+                      Text(
+                        title,
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          color: Colors.grey[500],
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
-            ],
-          ),
         ),
       ),
     );
@@ -264,37 +365,86 @@ class _RecentScans extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Recent Scans', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold)),
+          Text(
+            'Recent Scans',
+            style: GoogleFonts.poppins(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           const SizedBox(height: 16),
           StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance.collection('scanLogs').orderBy('timestamp', descending: true).limit(8).snapshots(),
+            stream:
+                FirebaseFirestore.instance
+                    .collection('scanLogs')
+                    .orderBy('timestamp', descending: true)
+                    .limit(8)
+                    .snapshots(),
             builder: (_, snap) {
-              if (!snap.hasData) return const Center(child: CircularProgressIndicator(color: Color(0xFF2E7D32)));
-              if (snap.data!.docs.isEmpty) return Text('No scans yet.', style: GoogleFonts.poppins(color: Colors.grey));
+              if (!snap.hasData)
+                return const Center(
+                  child: CircularProgressIndicator(color: Color(0xFF2E7D32)),
+                );
+              if (snap.data!.docs.isEmpty)
+                return Text(
+                  'No scans yet.',
+                  style: GoogleFonts.poppins(color: Colors.grey),
+                );
               return Column(
-                children: snap.data!.docs.map((d) {
-                  final data = d.data() as Map<String, dynamic>;
-                  return ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(color: const Color(0xFFE8F5E9), borderRadius: BorderRadius.circular(8)),
-                      child: const Icon(Icons.qr_code_rounded, color: Color(0xFF2E7D32), size: 18),
-                    ),
-                    title: Text(data['productName']?.toString() ?? data['barcode']?.toString() ?? '',
-                        style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 13)),
-                    subtitle: Text('${data['userEmail'] ?? ''} · ${data['city'] ?? ''}',
-                        style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey)),
-                    trailing: data['timestamp'] != null
-                        ? Text(_formatDate((data['timestamp'] as Timestamp).toDate()),
-                            style: GoogleFonts.poppins(fontSize: 10, color: Colors.grey))
-                        : null,
-                  );
-                }).toList(),
+                children:
+                    snap.data!.docs.map((d) {
+                      final data = d.data() as Map<String, dynamic>;
+                      return ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE8F5E9),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(
+                            Icons.qr_code_rounded,
+                            color: Color(0xFF2E7D32),
+                            size: 18,
+                          ),
+                        ),
+                        title: Text(
+                          data['productName']?.toString() ??
+                              data['barcode']?.toString() ??
+                              '',
+                          style: GoogleFonts.poppins(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                          ),
+                        ),
+                        subtitle: Text(
+                          '${data['userEmail'] ?? ''} · ${data['city'] ?? ''}',
+                          style: GoogleFonts.poppins(
+                            fontSize: 11,
+                            color: Colors.grey,
+                          ),
+                        ),
+                        trailing:
+                            data['timestamp'] != null
+                                ? Text(
+                                  _formatDate(
+                                    (data['timestamp'] as Timestamp).toDate(),
+                                  ),
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 10,
+                                    color: Colors.grey,
+                                  ),
+                                )
+                                : null,
+                      );
+                    }).toList(),
               );
             },
           ),
@@ -303,7 +453,8 @@ class _RecentScans extends StatelessWidget {
     );
   }
 
-  String _formatDate(DateTime d) => '${d.day}/${d.month} ${d.hour}:${d.minute.toString().padLeft(2, '0')}';
+  String _formatDate(DateTime d) =>
+      '${d.day}/${d.month} ${d.hour}:${d.minute.toString().padLeft(2, '0')}';
 }
 
 class _RecentUsers extends StatelessWidget {
@@ -311,33 +462,72 @@ class _RecentUsers extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Recent Users', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold)),
+          Text(
+            'Recent Users',
+            style: GoogleFonts.poppins(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           const SizedBox(height: 16),
           StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance.collection('users').orderBy('createdAt', descending: true).limit(6).snapshots(),
+            stream:
+                FirebaseFirestore.instance
+                    .collection('users')
+                    .orderBy('createdAt', descending: true)
+                    .limit(6)
+                    .snapshots(),
             builder: (_, snap) {
-              if (!snap.hasData) return const Center(child: CircularProgressIndicator(color: Color(0xFF2E7D32)));
-              if (snap.data!.docs.isEmpty) return Text('No users yet.', style: GoogleFonts.poppins(color: Colors.grey));
+              if (!snap.hasData)
+                return const Center(
+                  child: CircularProgressIndicator(color: Color(0xFF2E7D32)),
+                );
+              if (snap.data!.docs.isEmpty)
+                return Text(
+                  'No users yet.',
+                  style: GoogleFonts.poppins(color: Colors.grey),
+                );
               return Column(
-                children: snap.data!.docs.map((d) {
-                  final data = d.data() as Map<String, dynamic>;
-                  final name = data['fullName']?.toString() ?? 'User';
-                  return ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: CircleAvatar(
-                      backgroundColor: const Color(0xFFE8F5E9),
-                      radius: 18,
-                      child: Text(name.isNotEmpty ? name[0].toUpperCase() : 'U',
-                          style: const TextStyle(color: Color(0xFF2E7D32), fontWeight: FontWeight.bold)),
-                    ),
-                    title: Text(name, style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 13)),
-                    subtitle: Text(data['email']?.toString() ?? '', style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey)),
-                  );
-                }).toList(),
+                children:
+                    snap.data!.docs.map((d) {
+                      final data = d.data() as Map<String, dynamic>;
+                      final name = data['fullName']?.toString() ?? 'User';
+                      return ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: CircleAvatar(
+                          backgroundColor: const Color(0xFFE8F5E9),
+                          radius: 18,
+                          child: Text(
+                            name.isNotEmpty ? name[0].toUpperCase() : 'U',
+                            style: const TextStyle(
+                              color: Color(0xFF2E7D32),
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        title: Text(
+                          name,
+                          style: GoogleFonts.poppins(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                          ),
+                        ),
+                        subtitle: Text(
+                          data['email']?.toString() ?? '',
+                          style: GoogleFonts.poppins(
+                            fontSize: 11,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      );
+                    }).toList(),
               );
             },
           ),
@@ -353,62 +543,117 @@ class _Users extends StatelessWidget {
   Future<void> _delete(BuildContext context, String uid, String name) async {
     final ok = await showDialog<bool>(
       context: context,
-      builder: (c) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Delete User', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
-        content: Text('Delete $name? This cannot be undone.', style: GoogleFonts.poppins()),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: Text('Cancel', style: GoogleFonts.poppins())),
-          TextButton(onPressed: () => Navigator.pop(c, true), child: Text('Delete', style: GoogleFonts.poppins(color: Colors.red))),
-        ],
-      ),
+      builder:
+          (c) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: Text(
+              'Delete User',
+              style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+            ),
+            content: Text(
+              'Delete $name? This cannot be undone.',
+              style: GoogleFonts.poppins(),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(c, false),
+                child: Text('Cancel', style: GoogleFonts.poppins()),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(c, true),
+                child: Text(
+                  'Delete',
+                  style: GoogleFonts.poppins(color: Colors.red),
+                ),
+              ),
+            ],
+          ),
     );
-    if (ok == true) await FirebaseFirestore.instance.collection('users').doc(uid).delete();
+    if (ok == true)
+      await FirebaseFirestore.instance.collection('users').doc(uid).delete();
   }
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Registered Users', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold)),
+          Text(
+            'Registered Users',
+            style: GoogleFonts.poppins(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           const SizedBox(height: 20),
           StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance.collection('users').snapshots(),
             builder: (_, snap) {
-              if (!snap.hasData) return const Center(child: CircularProgressIndicator(color: Color(0xFF2E7D32)));
-              if (snap.data!.docs.isEmpty) return Text('No users yet.', style: GoogleFonts.poppins(color: Colors.grey));
+              if (!snap.hasData)
+                return const Center(
+                  child: CircularProgressIndicator(color: Color(0xFF2E7D32)),
+                );
+              if (snap.data!.docs.isEmpty)
+                return Text(
+                  'No users yet.',
+                  style: GoogleFonts.poppins(color: Colors.grey),
+                );
               return ListView.separated(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: snap.data!.docs.length,
                 separatorBuilder: (_, __) => const Divider(height: 1),
                 itemBuilder: (context, i) {
-                  final data = snap.data!.docs[i].data() as Map<String, dynamic>;
+                  final data =
+                      snap.data!.docs[i].data() as Map<String, dynamic>;
                   final uid = snap.data!.docs[i].id;
                   final name = data['fullName']?.toString() ?? 'User';
                   return ListTile(
                     leading: CircleAvatar(
                       backgroundColor: const Color(0xFFE8F5E9),
-                      child: Text(name.isNotEmpty ? name[0].toUpperCase() : 'U',
-                          style: const TextStyle(color: Color(0xFF2E7D32), fontWeight: FontWeight.bold)),
+                      child: Text(
+                        name.isNotEmpty ? name[0].toUpperCase() : 'U',
+                        style: const TextStyle(
+                          color: Color(0xFF2E7D32),
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
-                    title: Text(name, style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
-                    subtitle: Text(data['email']?.toString() ?? '', style: GoogleFonts.poppins(fontSize: 12)),
+                    title: Text(
+                      name,
+                      style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                    ),
+                    subtitle: Text(
+                      data['email']?.toString() ?? '',
+                      style: GoogleFonts.poppins(fontSize: 12),
+                    ),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          data['isVerified'] == true ? Icons.verified : Icons.warning_amber_rounded,
-                          color: data['isVerified'] == true ? Colors.blue : Colors.orange,
+                          data['isVerified'] == true
+                              ? Icons.verified
+                              : Icons.warning_amber_rounded,
+                          color:
+                              data['isVerified'] == true
+                                  ? Colors.blue
+                                  : Colors.orange,
                           size: 18,
                         ),
                         const SizedBox(width: 8),
                         IconButton(
-                          icon: const Icon(Icons.delete_outline, color: Colors.red),
+                          icon: const Icon(
+                            Icons.delete_outline,
+                            color: Colors.red,
+                          ),
                           onPressed: () => _delete(context, uid, name),
                         ),
                       ],
@@ -442,51 +687,83 @@ class _OrdersState extends State<_Orders> {
     final reasonCtrl = TextEditingController();
     final ok = await showDialog<bool>(
       context: context,
-      builder: (c) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Cancel Order', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('$productName at $marketName', style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 13)),
-            const SizedBox(height: 16),
-            TextField(
-              controller: reasonCtrl,
-              decoration: InputDecoration(
-                labelText: 'Reason for cancellation',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              ),
-              maxLines: 3,
+      builder:
+          (c) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
             ),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: Text('Abort', style: GoogleFonts.poppins())),
-          TextButton(
-            onPressed: () => Navigator.pop(c, reasonCtrl.text.trim().isNotEmpty),
-            child: Text('Confirm', style: GoogleFonts.poppins(color: Colors.red)),
+            title: Text(
+              'Cancel Order',
+              style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$productName at $marketName',
+                  style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: reasonCtrl,
+                  decoration: InputDecoration(
+                    labelText: 'Reason for cancellation',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                  ),
+                  maxLines: 3,
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(c, false),
+                child: Text('Abort', style: GoogleFonts.poppins()),
+              ),
+              TextButton(
+                onPressed:
+                    () => Navigator.pop(c, reasonCtrl.text.trim().isNotEmpty),
+                child: Text(
+                  'Confirm',
+                  style: GoogleFonts.poppins(color: Colors.red),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
     );
 
     if (ok == true && reasonCtrl.text.trim().isNotEmpty) {
-      await FirebaseFirestore.instance.collection('purchases').doc(purchaseId).update({
-        'orderStatus': 'cancelled',
-        'cancellationReason': reasonCtrl.text.trim(),
-        'cancelledAt': FieldValue.serverTimestamp(),
-      });
+      await FirebaseFirestore.instance
+          .collection('purchases')
+          .doc(purchaseId)
+          .update({
+            'orderStatus': 'cancelled',
+            'cancellationReason': reasonCtrl.text.trim(),
+            'cancelledAt': FieldValue.serverTimestamp(),
+          });
       await NotificationService.sendOrderCancelledNotification(
         userId: userId,
         productName: productName,
         marketName: marketName,
         reason: reasonCtrl.text.trim(),
       );
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Order cancelled'), backgroundColor: Colors.red),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Order cancelled'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
     reasonCtrl.dispose();
   }
@@ -495,24 +772,46 @@ class _OrdersState extends State<_Orders> {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Orders', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold)),
-          Text('Track user purchases and manage cancellations', style: GoogleFonts.poppins(color: Colors.grey[500], fontSize: 13)),
+          Text(
+            'Orders',
+            style: GoogleFonts.poppins(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Text(
+            'Track user purchases and manage cancellations',
+            style: GoogleFonts.poppins(color: Colors.grey[500], fontSize: 13),
+          ),
           const SizedBox(height: 20),
           StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance.collection('purchases').snapshots(),
+            stream:
+                FirebaseFirestore.instance.collection('purchases').snapshots(),
             builder: (_, snap) {
-              if (!snap.hasData) return const Center(child: CircularProgressIndicator(color: Color(0xFF2E7D32)));
-              if (snap.data!.docs.isEmpty) return Text('No orders yet.', style: GoogleFonts.poppins(color: Colors.grey));
-              final sortedDocs = snap.data!.docs.toList()
-                ..sort((a, b) {
-                  final aTime = (a.data() as Map)['timestamp'] as Timestamp?;
-                  final bTime = (b.data() as Map)['timestamp'] as Timestamp?;
-                  return (bTime?.toDate() ?? DateTime.now()).compareTo(aTime?.toDate() ?? DateTime.now());
-                });
+              if (!snap.hasData)
+                return const Center(
+                  child: CircularProgressIndicator(color: Color(0xFF2E7D32)),
+                );
+              if (snap.data!.docs.isEmpty)
+                return Text(
+                  'No orders yet.',
+                  style: GoogleFonts.poppins(color: Colors.grey),
+                );
+              final sortedDocs =
+                  snap.data!.docs.toList()..sort((a, b) {
+                    final aTime = (a.data() as Map)['timestamp'] as Timestamp?;
+                    final bTime = (b.data() as Map)['timestamp'] as Timestamp?;
+                    return (bTime?.toDate() ?? DateTime.now()).compareTo(
+                      aTime?.toDate() ?? DateTime.now(),
+                    );
+                  });
               return ListView.separated(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
@@ -522,7 +821,8 @@ class _OrdersState extends State<_Orders> {
                   final data = sortedDocs[i].data() as Map<String, dynamic>;
                   final docId = sortedDocs[i].id;
                   final ts = data['timestamp'] as Timestamp?;
-                  final orderStatus = data['orderStatus'] as String? ?? 'pending';
+                  final orderStatus =
+                      data['orderStatus'] as String? ?? 'pending';
                   final isCancelled = orderStatus == 'cancelled';
                   final statusColor = isCancelled ? Colors.red : Colors.orange;
 
@@ -530,34 +830,71 @@ class _OrdersState extends State<_Orders> {
                     contentPadding: EdgeInsets.zero,
                     leading: CircleAvatar(
                       backgroundColor: const Color(0xFFE8F5E9),
-                      backgroundImage: (data['imageUrl'] as String?)?.isNotEmpty == true
-                          ? NetworkImage(data['imageUrl'] as String)
-                          : null,
-                      child: (data['imageUrl'] as String?)?.isEmpty != false
-                          ? const Icon(Icons.shopping_bag_rounded, color: Color(0xFF2E7D32), size: 20)
-                          : null,
+                      backgroundImage:
+                          (data['imageUrl'] as String?)?.isNotEmpty == true
+                              ? NetworkImage(data['imageUrl'] as String)
+                              : null,
+                      child:
+                          (data['imageUrl'] as String?)?.isEmpty != false
+                              ? const Icon(
+                                Icons.shopping_bag_rounded,
+                                color: Color(0xFF2E7D32),
+                                size: 20,
+                              )
+                              : null,
                     ),
-                    title: Text(data['productName']?.toString() ?? '',
-                        style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 14)),
+                    title: Text(
+                      data['productName']?.toString() ?? '',
+                      style: GoogleFonts.poppins(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('${data['userEmail'] ?? ''} · ${data['marketName'] ?? ''}',
-                            style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey)),
+                        Text(
+                          '${data['userEmail'] ?? ''} · ${data['marketName'] ?? ''}',
+                          style: GoogleFonts.poppins(
+                            fontSize: 11,
+                            color: Colors.grey,
+                          ),
+                        ),
                         const SizedBox(height: 4),
                         Row(
                           children: [
-                            Text('${data['price']?.toStringAsFixed(2) ?? ''} ${data['currency'] ?? 'TRY'}',
-                                style: GoogleFonts.poppins(fontSize: 12, color: const Color(0xFF2E7D32), fontWeight: FontWeight.w600)),
+                            Text(
+                              '${data['price']?.toStringAsFixed(2) ?? ''} ${data['currency'] ?? 'TRY'}',
+                              style: GoogleFonts.poppins(
+                                fontSize: 12,
+                                color: const Color(0xFF2E7D32),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                             const SizedBox(width: 12),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
-                                color: isCancelled ? Colors.red.shade50 : Colors.orange.shade50,
+                                color:
+                                    isCancelled
+                                        ? Colors.red.shade50
+                                        : Colors.orange.shade50,
                                 borderRadius: BorderRadius.circular(4),
                               ),
-                              child: Text(orderStatus.replaceFirst(orderStatus[0], orderStatus[0].toUpperCase()),
-                                  style: GoogleFonts.poppins(fontSize: 10, color: statusColor, fontWeight: FontWeight.w600)),
+                              child: Text(
+                                orderStatus.replaceFirst(
+                                  orderStatus[0],
+                                  orderStatus[0].toUpperCase(),
+                                ),
+                                style: GoogleFonts.poppins(
+                                  fontSize: 10,
+                                  color: statusColor,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                             ),
                           ],
                         ),
@@ -567,18 +904,27 @@ class _OrdersState extends State<_Orders> {
                       spacing: 8,
                       children: [
                         if (ts != null)
-                          Text('${ts.toDate().day}/${ts.toDate().month}',
-                              style: GoogleFonts.poppins(fontSize: 10, color: Colors.grey)),
+                          Text(
+                            '${ts.toDate().day}/${ts.toDate().month}',
+                            style: GoogleFonts.poppins(
+                              fontSize: 10,
+                              color: Colors.grey,
+                            ),
+                          ),
                         if (!isCancelled)
                           IconButton(
-                            icon: const Icon(Icons.close_rounded, color: Colors.red),
-                            onPressed: () => _cancelOrder(
-                              context: context,
-                              purchaseId: docId,
-                              userId: data['userId'],
-                              productName: data['productName'],
-                              marketName: data['marketName'],
+                            icon: const Icon(
+                              Icons.close_rounded,
+                              color: Colors.red,
                             ),
+                            onPressed:
+                                () => _cancelOrder(
+                                  context: context,
+                                  purchaseId: docId,
+                                  userId: data['userId'],
+                                  productName: data['productName'],
+                                  marketName: data['marketName'],
+                                ),
                           ),
                       ],
                     ),
@@ -601,45 +947,90 @@ class _ScanLogs extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Scan Logs', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold)),
-          Text('All product scans by users', style: GoogleFonts.poppins(color: Colors.grey[500], fontSize: 13)),
+          Text(
+            'Scan Logs',
+            style: GoogleFonts.poppins(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Text(
+            'All product scans by users',
+            style: GoogleFonts.poppins(color: Colors.grey[500], fontSize: 13),
+          ),
           const SizedBox(height: 20),
           StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance.collection('scanLogs').orderBy('timestamp', descending: true).snapshots(),
+            stream:
+                FirebaseFirestore.instance
+                    .collection('scanLogs')
+                    .orderBy('timestamp', descending: true)
+                    .snapshots(),
             builder: (_, snap) {
-              if (!snap.hasData) return const Center(child: CircularProgressIndicator(color: Color(0xFF2E7D32)));
-              if (snap.data!.docs.isEmpty) return Text('No scan logs yet.', style: GoogleFonts.poppins(color: Colors.grey));
+              if (!snap.hasData)
+                return const Center(
+                  child: CircularProgressIndicator(color: Color(0xFF2E7D32)),
+                );
+              if (snap.data!.docs.isEmpty)
+                return Text(
+                  'No scan logs yet.',
+                  style: GoogleFonts.poppins(color: Colors.grey),
+                );
               return ListView.separated(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: snap.data!.docs.length,
                 separatorBuilder: (_, __) => const Divider(height: 1),
                 itemBuilder: (context, i) {
-                  final data = snap.data!.docs[i].data() as Map<String, dynamic>;
+                  final data =
+                      snap.data!.docs[i].data() as Map<String, dynamic>;
                   final ts = data['timestamp'] as Timestamp?;
                   return ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: Container(
                       padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(color: const Color(0xFFE8F5E9), borderRadius: BorderRadius.circular(10)),
-                      child: const Icon(Icons.qr_code_rounded, color: Color(0xFF2E7D32), size: 20),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE8F5E9),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(
+                        Icons.qr_code_rounded,
+                        color: Color(0xFF2E7D32),
+                        size: 20,
+                      ),
                     ),
-                    title: Text(data['productName']?.toString() ?? data['barcode']?.toString() ?? '',
-                        style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 14)),
+                    title: Text(
+                      data['productName']?.toString() ??
+                          data['barcode']?.toString() ??
+                          '',
+                      style: GoogleFonts.poppins(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
                     subtitle: Text(
                       '${data['userEmail'] ?? 'Unknown'} · ${data['city'] ?? ''} · Barcode: ${data['barcode'] ?? ''}',
-                      style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey),
+                      style: GoogleFonts.poppins(
+                        fontSize: 11,
+                        color: Colors.grey,
+                      ),
                     ),
-                    trailing: ts != null
-                        ? Text(
-                            _fmt(ts.toDate()),
-                            style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey),
-                          )
-                        : null,
+                    trailing:
+                        ts != null
+                            ? Text(
+                              _fmt(ts.toDate()),
+                              style: GoogleFonts.poppins(
+                                fontSize: 11,
+                                color: Colors.grey,
+                              ),
+                            )
+                            : null,
                     isThreeLine: true,
                   );
                 },
@@ -651,7 +1042,8 @@ class _ScanLogs extends StatelessWidget {
     );
   }
 
-  String _fmt(DateTime d) => '${d.day}/${d.month}/${d.year} ${d.hour}:${d.minute.toString().padLeft(2, '0')}';
+  String _fmt(DateTime d) =>
+      '${d.day}/${d.month}/${d.year} ${d.hour}:${d.minute.toString().padLeft(2, '0')}';
 }
 
 class _ApiSettings extends StatefulWidget {
@@ -684,11 +1076,17 @@ class _ApiSettingsState extends State<_ApiSettings> {
 
   Future<void> _load() async {
     try {
-      final doc = await FirebaseFirestore.instance.collection('settings').doc('marketApi').get()
+      final doc = await FirebaseFirestore.instance
+          .collection('settings')
+          .doc('marketApi')
+          .get()
           .timeout(const Duration(seconds: 6));
       if (doc.exists && mounted) {
         final url = (doc.data()?['baseUrl'] ?? '').toString();
-        setState(() { _savedUrl = url; _urlCtrl.text = url; });
+        setState(() {
+          _savedUrl = url;
+          _urlCtrl.text = url;
+        });
       }
     } catch (_) {}
   }
@@ -698,15 +1096,20 @@ class _ApiSettingsState extends State<_ApiSettings> {
     if (url.isEmpty) return;
     setState(() => _isSaving = true);
     try {
-      await FirebaseFirestore.instance.collection('settings').doc('marketApi').set({
-        'baseUrl': url,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      await FirebaseFirestore.instance
+          .collection('settings')
+          .doc('marketApi')
+          .set({'baseUrl': url, 'updatedAt': FieldValue.serverTimestamp()});
       MarketApiService.clearCache();
       setState(() => _savedUrl = url);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('API URL saved'), backgroundColor: Colors.green),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('API URL saved'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -715,12 +1118,17 @@ class _ApiSettingsState extends State<_ApiSettings> {
   Future<void> _test() async {
     final url = _urlCtrl.text.trim();
     if (url.isEmpty) return;
-    setState(() { _isTesting = true; _testResult = null; });
+    setState(() {
+      _isTesting = true;
+      _testResult = null;
+    });
     try {
       final res = await http
           .get(Uri.parse('$url/api/products/search?barcode=test&city=Lefkosa'))
           .timeout(const Duration(seconds: 6));
-      setState(() => _testResult = res.statusCode == 200 || res.statusCode == 404);
+      setState(
+        () => _testResult = res.statusCode == 200 || res.statusCode == 404,
+      );
     } catch (_) {
       setState(() => _testResult = false);
     } finally {
@@ -735,16 +1143,34 @@ class _ApiSettingsState extends State<_ApiSettings> {
       children: [
         Container(
           padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Market API Configuration', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold)),
-              Text('C# backend URL for barcode+city price queries', style: GoogleFonts.poppins(color: Colors.grey[500], fontSize: 13)),
+              Text(
+                'Market API Configuration',
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                'C# backend URL for barcode+city price queries',
+                style: GoogleFonts.poppins(
+                  color: Colors.grey[500],
+                  fontSize: 13,
+                ),
+              ),
               const SizedBox(height: 24),
               if (_savedUrl.isNotEmpty) ...[
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFFE8F5E9),
                     borderRadius: BorderRadius.circular(10),
@@ -752,11 +1178,22 @@ class _ApiSettingsState extends State<_ApiSettings> {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.check_circle_outline, color: _green, size: 16),
+                      const Icon(
+                        Icons.check_circle_outline,
+                        color: _green,
+                        size: 16,
+                      ),
                       const SizedBox(width: 8),
-                      Expanded(child: Text(_savedUrl,
-                          style: GoogleFonts.poppins(fontSize: 12, color: _green),
-                          overflow: TextOverflow.ellipsis)),
+                      Expanded(
+                        child: Text(
+                          _savedUrl,
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            color: _green,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -768,25 +1205,46 @@ class _ApiSettingsState extends State<_ApiSettings> {
                   labelText: 'API Base URL',
                   hintText: 'https://your-api.com',
                   prefixIcon: const Icon(Icons.link_rounded, size: 20),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 14,
+                  ),
                 ),
               ),
               if (_testResult != null) ...[
                 const SizedBox(height: 12),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
-                    color: _testResult! ? const Color(0xFFE8F5E9) : Colors.red.shade50,
+                    color:
+                        _testResult!
+                            ? const Color(0xFFE8F5E9)
+                            : Colors.red.shade50,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Row(
                     children: [
-                      Icon(_testResult! ? Icons.check_circle : Icons.error_outline,
-                          color: _testResult! ? _green : Colors.red, size: 16),
+                      Icon(
+                        _testResult! ? Icons.check_circle : Icons.error_outline,
+                        color: _testResult! ? _green : Colors.red,
+                        size: 16,
+                      ),
                       const SizedBox(width: 8),
-                      Text(_testResult! ? 'API is reachable ✓' : 'API unreachable — check if server is running',
-                          style: GoogleFonts.poppins(fontSize: 12, color: _testResult! ? _green : Colors.red)),
+                      Text(
+                        _testResult!
+                            ? 'API is reachable ✓'
+                            : 'API unreachable — check if server is running',
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          color: _testResult! ? _green : Colors.red,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -796,32 +1254,58 @@ class _ApiSettingsState extends State<_ApiSettings> {
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
-                      icon: _isTesting
-                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF2E7D32)))
-                          : const Icon(Icons.wifi_tethering_rounded, size: 18),
-                      label: Text('Test Connection', style: GoogleFonts.poppins()),
+                      icon:
+                          _isTesting
+                              ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Color(0xFF2E7D32),
+                                ),
+                              )
+                              : const Icon(
+                                Icons.wifi_tethering_rounded,
+                                size: 18,
+                              ),
+                      label: Text(
+                        'Test Connection',
+                        style: GoogleFonts.poppins(),
+                      ),
                       onPressed: _isTesting ? null : _test,
                       style: OutlinedButton.styleFrom(
                         foregroundColor: _green,
                         side: const BorderSide(color: _green),
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton.icon(
-                      icon: _isSaving
-                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                          : const Icon(Icons.save_outlined, size: 18),
+                      icon:
+                          _isSaving
+                              ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                              : const Icon(Icons.save_outlined, size: 18),
                       label: Text('Save URL', style: GoogleFonts.poppins()),
                       onPressed: _isSaving ? null : _save,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: _green,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                     ),
                   ),
@@ -833,14 +1317,27 @@ class _ApiSettingsState extends State<_ApiSettings> {
         const SizedBox(height: 24),
         Container(
           padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('API Endpoint Info', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold)),
+              Text(
+                'API Endpoint Info',
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               const SizedBox(height: 16),
-              _EndpointRow(method: 'GET', path: '/api/products/search?barcode={barcode}&city={city}',
-                  desc: 'Returns product info + prices for given barcode in given city'),
+              _EndpointRow(
+                method: 'GET',
+                path: '/api/products/search?barcode={barcode}&city={city}',
+                desc:
+                    'Returns product info + prices for given barcode in given city',
+              ),
             ],
           ),
         ),
@@ -854,13 +1351,20 @@ class _EndpointRow extends StatelessWidget {
   final String path;
   final String desc;
 
-  const _EndpointRow({required this.method, required this.path, required this.desc});
+  const _EndpointRow({
+    required this.method,
+    required this.path,
+    required this.desc,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(color: const Color(0xFFF5F7FA), borderRadius: BorderRadius.circular(10)),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF5F7FA),
+        borderRadius: BorderRadius.circular(10),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -868,15 +1372,36 @@ class _EndpointRow extends StatelessWidget {
             children: [
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(color: Colors.green.shade100, borderRadius: BorderRadius.circular(6)),
-                child: Text(method, style: GoogleFonts.poppins(color: Colors.green[800], fontSize: 11, fontWeight: FontWeight.bold)),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade100,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  method,
+                  style: GoogleFonts.poppins(
+                    color: Colors.green[800],
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
               const SizedBox(width: 10),
-              Expanded(child: Text(path, style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w600))),
+              Expanded(
+                child: Text(
+                  path,
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 6),
-          Text(desc, style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600])),
+          Text(
+            desc,
+            style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600]),
+          ),
         ],
       ),
     );
@@ -914,9 +1439,14 @@ class _NotificationsState extends State<_Notifications> {
       });
       _titleCtrl.clear();
       _bodyCtrl.clear();
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Notification sent'), backgroundColor: Colors.green),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Notification sent'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isSending = false);
     }
@@ -929,19 +1459,33 @@ class _NotificationsState extends State<_Notifications> {
       children: [
         Container(
           padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Send Notification', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold)),
+              Text(
+                'Send Notification',
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               const SizedBox(height: 20),
               TextField(
                 controller: _titleCtrl,
                 decoration: InputDecoration(
                   labelText: 'Title',
                   prefixIcon: const Icon(Icons.title_rounded, size: 20),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 14,
+                  ),
                 ),
               ),
               const SizedBox(height: 14),
@@ -954,24 +1498,42 @@ class _NotificationsState extends State<_Notifications> {
                     padding: EdgeInsets.only(bottom: 56),
                     child: Icon(Icons.message_outlined, size: 20),
                   ),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 14,
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
               SizedBox(
                 width: 220,
                 child: ElevatedButton.icon(
-                  icon: _isSending
-                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                      : const Icon(Icons.send_rounded, size: 18),
-                  label: Text('Send to All Users', style: GoogleFonts.poppins()),
+                  icon:
+                      _isSending
+                          ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                          : const Icon(Icons.send_rounded, size: 18),
+                  label: Text(
+                    'Send to All Users',
+                    style: GoogleFonts.poppins(),
+                  ),
                   onPressed: _isSending ? null : _send,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF2E7D32),
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 ),
               ),
@@ -981,44 +1543,95 @@ class _NotificationsState extends State<_Notifications> {
         const SizedBox(height: 24),
         Container(
           padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Sent Notifications', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold)),
+              Text(
+                'Sent Notifications',
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               const SizedBox(height: 16),
               StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance.collection('notifications')
-                    .orderBy('createdAt', descending: true).snapshots(),
+                stream:
+                    FirebaseFirestore.instance
+                        .collection('notifications')
+                        .orderBy('createdAt', descending: true)
+                        .snapshots(),
                 builder: (_, snap) {
-                  if (!snap.hasData) return const Center(child: CircularProgressIndicator(color: Color(0xFF2E7D32)));
-                  if (snap.data!.docs.isEmpty) return Text('No notifications sent yet.', style: GoogleFonts.poppins(color: Colors.grey));
+                  if (!snap.hasData)
+                    return const Center(
+                      child: CircularProgressIndicator(
+                        color: Color(0xFF2E7D32),
+                      ),
+                    );
+                  if (snap.data!.docs.isEmpty)
+                    return Text(
+                      'No notifications sent yet.',
+                      style: GoogleFonts.poppins(color: Colors.grey),
+                    );
                   return ListView.separated(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     itemCount: snap.data!.docs.length,
                     separatorBuilder: (_, __) => const Divider(height: 1),
                     itemBuilder: (_, i) {
-                      final data = snap.data!.docs[i].data() as Map<String, dynamic>;
+                      final data =
+                          snap.data!.docs[i].data() as Map<String, dynamic>;
                       final ts = data['createdAt'] as Timestamp?;
                       return ListTile(
                         contentPadding: EdgeInsets.zero,
                         leading: Container(
                           padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(color: const Color(0xFFE8F5E9), borderRadius: BorderRadius.circular(10)),
-                          child: const Icon(Icons.notifications_active_rounded, color: Color(0xFF2E7D32), size: 20),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE8F5E9),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(
+                            Icons.notifications_active_rounded,
+                            color: Color(0xFF2E7D32),
+                            size: 20,
+                          ),
                         ),
-                        title: Text(data['title'] ?? '', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
-                        subtitle: Text(data['body'] ?? '', style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey)),
+                        title: Text(
+                          data['title'] ?? '',
+                          style: GoogleFonts.poppins(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        subtitle: Text(
+                          data['body'] ?? '',
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
+                        ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            if (ts != null) Text('${ts.toDate().day}/${ts.toDate().month}/${ts.toDate().year}',
-                                style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey)),
+                            if (ts != null)
+                              Text(
+                                '${ts.toDate().day}/${ts.toDate().month}/${ts.toDate().year}',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 11,
+                                  color: Colors.grey,
+                                ),
+                              ),
                             const SizedBox(width: 8),
                             IconButton(
-                              icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
-                              onPressed: () => snap.data!.docs[i].reference.delete(),
+                              icon: const Icon(
+                                Icons.delete_outline,
+                                color: Colors.red,
+                                size: 20,
+                              ),
+                              onPressed:
+                                  () => snap.data!.docs[i].reference.delete(),
                             ),
                           ],
                         ),

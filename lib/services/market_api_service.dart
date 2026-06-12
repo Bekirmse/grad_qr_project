@@ -27,20 +27,16 @@ class MarketSearchResult {
       photoUrl: json['photoUrl']?.toString() ?? '',
       price: (json['price'] as num).toDouble(),
       marketName: json['marketName']?.toString() ?? '',
-      discountPrice: json['discountPrice'] != null
-          ? (json['discountPrice'] as num).toDouble()
-          : null,
+      discountPrice:
+          json['discountPrice'] != null
+              ? (json['discountPrice'] as num).toDouble()
+              : null,
     );
   }
 }
 
 class MarketApiService {
-  static const List<String> cities = [
-    'All',
-    'Nicosia',
-    'Kyrenia',
-    'Famagusta',
-  ];
+  static const List<String> cities = ['All', 'Nicosia', 'Kyrenia', 'Famagusta'];
 
   static const List<String> _allCities = ['Nicosia', 'Kyrenia', 'Famagusta'];
 
@@ -50,7 +46,7 @@ class MarketApiService {
     'Famagusta': 'Famagusta',
   };
 
-  static String? _cachedUrl = null;
+  static String? _cachedUrl;
 
   static Future<String?> getBaseUrl() async {
     if (_cachedUrl != null) return _cachedUrl;
@@ -74,7 +70,9 @@ class MarketApiService {
   static void clearCache() => _cachedUrl = null;
 
   static Future<List<MarketSearchResult>> searchProductInCity(
-      String barcode, String city) async {
+    String barcode,
+    String city,
+  ) async {
     debugPrint('===== MarketApiService.searchProductInCity =====');
     debugPrint('Barcode: $barcode, City: $city');
 
@@ -82,7 +80,9 @@ class MarketApiService {
       debugPrint('City is All, querying all cities: $_allCities');
       final futures = _allCities.map((c) => _fetchCity(barcode, c));
       final results = await Future.wait(futures);
-      debugPrint('Results from each city: ${results.map((r) => r.length).toList()}');
+      debugPrint(
+        'Results from each city: ${results.map((r) => r.length).toList()}',
+      );
       final combined = results.expand((r) => r).toList();
       debugPrint('Combined results: ${combined.length}');
       combined.sort((a, b) => a.price.compareTo(b.price));
@@ -96,7 +96,9 @@ class MarketApiService {
   }
 
   static Future<List<MarketSearchResult>> _fetchCity(
-      String barcode, String city) async {
+    String barcode,
+    String city,
+  ) async {
     final baseUrl = await getBaseUrl();
     debugPrint('_fetchCity: barcode=$barcode, city=$city, baseUrl=$baseUrl');
 
@@ -105,24 +107,31 @@ class MarketApiService {
       return [];
     }
 
-    final cleanUrl = baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
+    final cleanUrl =
+        baseUrl.endsWith('/')
+            ? baseUrl.substring(0, baseUrl.length - 1)
+            : baseUrl;
     final apiCity = _cityMapping[city] ?? city;
     debugPrint('City mapping: $city → $apiCity');
 
     final uri = Uri.parse(
-        '$cleanUrl/api/products/findbybarccodenumber?barcode=${Uri.encodeComponent(barcode)}&city=${Uri.encodeComponent(apiCity)}');
+      '$cleanUrl/api/products/findbybarccodenumber?barcode=${Uri.encodeComponent(barcode)}&city=${Uri.encodeComponent(apiCity)}',
+    );
     debugPrint('Full API URI: $uri');
 
     try {
       final response = await http.get(uri).timeout(const Duration(seconds: 10));
       debugPrint('API Response status: ${response.statusCode}');
       debugPrint('API Response body length: ${response.body.length}');
-      debugPrint('API Response body preview: ${response.body.substring(0, response.body.length > 200 ? 200 : response.body.length)}');
+      debugPrint(
+        'API Response body preview: ${response.body.substring(0, response.body.length > 200 ? 200 : response.body.length)}',
+      );
 
       if (response.statusCode == 200) {
         final List<dynamic> body = jsonDecode(response.body);
         debugPrint('Parsed JSON count: ${body.length}');
-        final results = body.map((item) => MarketSearchResult.fromJson(item)).toList();
+        final results =
+            body.map((item) => MarketSearchResult.fromJson(item)).toList();
         return results;
       }
       debugPrint('ERROR: Status code ${response.statusCode}');
