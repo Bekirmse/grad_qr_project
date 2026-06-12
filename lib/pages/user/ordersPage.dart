@@ -286,6 +286,7 @@ class OrdersPage extends StatelessWidget {
 
   Widget _buildOrderTimeline(String status) {
     const green = Color(0xFF2E7D32);
+    const orange = Color(0xFFF57C00);
     const grey = Color(0xFFE0E0E0);
     const red = Colors.red;
 
@@ -312,7 +313,7 @@ class OrdersPage extends StatelessWidget {
                   children: List.generate(steps.length - 1, (i) {
                     final lineColor = (i < completedStep || (status == 'completed' && i < 3))
                         ? green
-                        : grey;
+                        : (i == 2 ? orange : grey);
                     return Expanded(
                       child: Container(
                         height: 2,
@@ -326,9 +327,14 @@ class OrdersPage extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: List.generate(steps.length, (i) {
                   final isCancelled = status == 'cancelled';
-                  final dotColor = isCancelled
-                      ? (i == 0 ? green : red)
-                      : (i <= completedStep ? green : grey);
+                  Color dotColor;
+                  if (i == 2) {
+                    dotColor = orange;
+                  } else if (isCancelled) {
+                    dotColor = i == 0 ? green : red;
+                  } else {
+                    dotColor = i <= completedStep ? green : grey;
+                  }
 
                   return Column(
                     children: [
