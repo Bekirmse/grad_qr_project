@@ -313,7 +313,7 @@ class OrdersPage extends StatelessWidget {
                   children: List.generate(steps.length - 1, (i) {
                     final lineColor = (i < completedStep || (status == 'completed' && i < 3))
                         ? green
-                        : (i == 2 ? orange : grey);
+                        : grey;
                     return Expanded(
                       child: Container(
                         height: 2,
