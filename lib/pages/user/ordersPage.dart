@@ -150,6 +150,25 @@ class OrdersPage extends StatelessWidget {
                                         style: GoogleFonts.poppins(fontSize: 10, color: Colors.red[700])),
                                   ),
                                 ),
+                              if (p['orderStatus'] == 'pending')
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 12),
+                                  child: SizedBox(
+                                    width: double.infinity,
+                                    child: ElevatedButton(
+                                      onPressed: () => _showCancelDialog(context, sortedDocs[i].id),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.red[100],
+                                        foregroundColor: Colors.red[700],
+                                        minimumSize: const Size(double.infinity, 40),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                        elevation: 0,
+                                      ),
+                                      child: Text('Cancel Order',
+                                          style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600)),
+                                    ),
+                                  ),
+                                ),
                             ],
                           ),
                         ],
@@ -159,6 +178,88 @@ class OrdersPage extends StatelessWidget {
                 );
               },
             ),
+    );
+  }
+
+  Future<void> _showCancelDialog(BuildContext context, String orderId) async {
+    final reasonCtrl = TextEditingController();
+    final user = FirebaseAuth.instance.currentUser;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Cancel Order', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Please provide a reason for cancellation:',
+                style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600])),
+            const SizedBox(height: 12),
+            TextField(
+              controller: reasonCtrl,
+              maxLines: 3,
+              decoration: InputDecoration(
+                hintText: 'Enter cancellation reason',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                contentPadding: const EdgeInsets.all(12),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Back', style: GoogleFonts.poppins(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (reasonCtrl.text.trim().isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Please enter a reason', style: GoogleFonts.poppins())),
+                );
+                return;
+              }
+
+              try {
+                await FirebaseFirestore.instance
+                    .collection('purchases')
+                    .doc(orderId)
+                    .update({
+                  'orderStatus': 'cancelled',
+                  'cancellationReason': reasonCtrl.text.trim(),
+                  'cancelledAt': FieldValue.serverTimestamp(),
+                  'cancelledBy': user?.uid,
+                });
+
+                await FirebaseFirestore.instance.collection('cancellationLogs').add({
+                  'orderId': orderId,
+                  'userId': user?.uid,
+                  'userEmail': user?.email,
+                  'reason': reasonCtrl.text.trim(),
+                  'cancelledAt': FieldValue.serverTimestamp(),
+                });
+
+                if (!ctx.mounted) return;
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Order cancelled successfully', style: GoogleFonts.poppins())),
+                );
+              } catch (e) {
+                if (!ctx.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error: $e', style: GoogleFonts.poppins())),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red[700],
+              foregroundColor: Colors.white,
+            ),
+            child: Text('Cancel Order', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
     );
   }
 
