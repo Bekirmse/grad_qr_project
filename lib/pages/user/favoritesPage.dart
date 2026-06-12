@@ -259,6 +259,8 @@ class _FavoriteCardState extends State<_FavoriteCard> {
                   final hasDiscount = snapshot.data?.$2 ?? false;
                   final isLoading = snapshot.connectionState == ConnectionState.waiting;
 
+                  debugPrint('🔵 FutureBuilder builder: photoUrl="$photoUrl", hasDiscount=$hasDiscount, isLoading=$isLoading');
+
                   return Stack(
                     children: [
                       Container(
