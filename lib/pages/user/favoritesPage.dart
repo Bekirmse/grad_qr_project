@@ -155,7 +155,9 @@ class _FavoriteCardState extends State<_FavoriteCard> {
   @override
   void initState() {
     super.initState();
+    debugPrint('🟢 initState called for barcode: ${widget.barcode}');
     _productInfoFuture = _getProductInfo();
+    debugPrint('🟢 _productInfoFuture assigned');
   }
 
   Future<void> _removeFavorite(BuildContext context) async {
