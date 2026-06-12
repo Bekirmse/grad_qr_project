@@ -2,7 +2,6 @@
 
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
-import 'verificationPage.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -14,7 +13,6 @@ class RegisterPage extends StatefulWidget {
 class _RegisterPageState extends State<RegisterPage> {
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
-  final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final AuthService _authService = AuthService();
@@ -37,7 +35,6 @@ class _RegisterPageState extends State<RegisterPage> {
     // 2. Alanların Doluluk Kontrolü
     if (_nameController.text.isEmpty ||
         _emailController.text.isEmpty ||
-        _phoneController.text.isEmpty ||
         _passwordController.text.isEmpty) {
       debugPrint("🔴 LOG: Hata - Boş alanlar var.");
       ScaffoldMessenger.of(
@@ -49,13 +46,6 @@ class _RegisterPageState extends State<RegisterPage> {
     setState(() => _isLoading = true);
     debugPrint("🔴 LOG: Loading açıldı, işlemler başlıyor...");
 
-    // 3. Telefon Numarası Formatlama
-    String phone = _phoneController.text.trim();
-    if (phone.isNotEmpty && !phone.startsWith('+')) {
-      phone = '+90$phone';
-    }
-    debugPrint("🔴 LOG: Telefon numarası formatlandı: $phone");
-
     try {
       // 4. KAYIT İŞLEMİ
       debugPrint("🔴 LOG: AuthService.registerUser çağrılıyor...");
@@ -64,7 +54,6 @@ class _RegisterPageState extends State<RegisterPage> {
         fullName: _nameController.text.trim(),
         email: _emailController.text.trim(),
         password: _passwordController.text,
-        phoneNumber: phone,
       );
 
       debugPrint(
@@ -77,52 +66,12 @@ class _RegisterPageState extends State<RegisterPage> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Account created! Sending verification code...'),
+              content: Text('Account created successfully!'),
               backgroundColor: Color(0xFF2E7D32),
             ),
           );
+          Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false);
         }
-
-        // 5. SMS Gönderimi
-        debugPrint("🔴 LOG: startPhoneAuth (SMS Gönderimi) başlatılıyor...");
-
-        await _authService.startPhoneAuth(
-          phoneNumber: phone,
-          onCodeSent: (verificationId, forceResendingToken) {
-            debugPrint(
-              "🟢 LOG: SMS Kodu başarıyla gönderildi! VerificationID: $verificationId",
-            );
-
-            setState(() => _isLoading = false);
-            debugPrint(
-              "🟢 LOG: Loading kapatıldı, VerificationPage'e gidiliyor.",
-            );
-
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder:
-                    (context) => VerificationPage(
-                      verificationId: verificationId,
-                      isPasswordReset: false,
-                      phoneNumber: phone,
-                    ),
-              ),
-            );
-          },
-          onVerificationFailed: (e) {
-            debugPrint("🔴 LOG: SMS Gönderme HATASI: ${e.code} - ${e.message}");
-
-            setState(() => _isLoading = false);
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(SnackBar(content: Text('SMS Error: ${e.message}')));
-          },
-        );
-
-        debugPrint(
-          "🔴 LOG: startPhoneAuth fonksiyonu tetiklendi (Sonuç bekleniyor).",
-        );
       } else {
         debugPrint("🔴 LOG: Kayıt sırasında hata oluştu: $error");
         setState(() => _isLoading = false);
@@ -215,15 +164,6 @@ class _RegisterPageState extends State<RegisterPage> {
                         'Email Address',
                         Icons.email_outlined,
                         type: TextInputType.emailAddress,
-                      ),
-                      const SizedBox(height: 16),
-                      _buildInput(
-                        _phoneController,
-                        'Phone Number',
-                        Icons.phone,
-                        hint: '533 123 45 67',
-                        prefixText: '+90 ',
-                        type: TextInputType.phone,
                       ),
                       const SizedBox(height: 16),
                       _buildPasswordInput(_passwordController, 'Password'),

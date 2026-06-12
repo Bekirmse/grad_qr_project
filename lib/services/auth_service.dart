@@ -11,7 +11,7 @@ class AuthService {
     required String fullName,
     required String email,
     required String password,
-    required String phoneNumber,
+    String phoneNumber = '',
     String role = 'user',
   }) async {
     try {
