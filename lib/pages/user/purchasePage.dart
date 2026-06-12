@@ -61,6 +61,7 @@ class _PurchasePageState extends State<PurchasePage>
   String _cardHolder = '';
   String _expiry = '';
   String _cvv = '';
+  String? _selectedAddress;
 
   static const _green = Color(0xFF2E7D32);
 
@@ -122,8 +123,184 @@ class _PurchasePageState extends State<PurchasePage>
 
   String _encode(String value) => base64Encode(utf8.encode(value));
 
+  Future<void> _showAddressSelection() async {
+    if (_user == null) return;
+
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(_user.uid)
+          .get();
+
+      final addresses = doc.get('addresses') as List? ?? [];
+      final List<Map<String, dynamic>> addressList =
+          List<Map<String, dynamic>>.from(addresses);
+
+      if (!mounted) return;
+
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text('Select Address', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ...addressList.asMap().entries.map((entry) {
+                  final addr = entry.value;
+                  return GestureDetector(
+                    onTap: () {
+                      setState(() => _selectedAddress = addr['address']);
+                      Navigator.pop(ctx);
+                    },
+                    child: Container(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF5F7FA),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: _selectedAddress == addr['address']
+                              ? _green
+                              : Colors.grey.shade200,
+                          width: 2,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(addr['label'],
+                              style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 13)),
+                          const SizedBox(height: 4),
+                          Text(addr['address'],
+                              style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey),
+                              maxLines: 2),
+                        ],
+                      ),
+                    ),
+                  );
+                }),
+                const Divider(height: 20),
+                GestureDetector(
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _showAddNewAddress();
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE8F5E9),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.add, color: _green, size: 20),
+                        const SizedBox(width: 8),
+                        Text('Add New Address',
+                            style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                              color: _green,
+                            )),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text('Cancel', style: GoogleFonts.poppins()),
+            ),
+          ],
+        ),
+      );
+    } catch (_) {}
+  }
+
+  void _showAddNewAddress() {
+    final labelCtrl = TextEditingController();
+    final addressCtrl = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text('Add Address', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: labelCtrl,
+              decoration: InputDecoration(
+                hintText: 'Home, Work, etc.',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: addressCtrl,
+              maxLines: 3,
+              decoration: InputDecoration(
+                hintText: 'Enter your address',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Cancel', style: GoogleFonts.poppins()),
+          ),
+          TextButton(
+            onPressed: () async {
+              if (labelCtrl.text.isEmpty || addressCtrl.text.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Please fill all fields', style: GoogleFonts.poppins())),
+                );
+                return;
+              }
+
+              if (_user != null) {
+                final doc = await FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(_user.uid)
+                    .get();
+                final addresses = doc.get('addresses') as List? ?? [];
+                addresses.add({
+                  'label': labelCtrl.text,
+                  'address': addressCtrl.text,
+                  'id': DateTime.now().millisecondsSinceEpoch.toString(),
+                });
+                await FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(_user.uid)
+                    .update({'addresses': addresses});
+
+                setState(() => _selectedAddress = addressCtrl.text);
+              }
+              if (mounted) Navigator.pop(ctx);
+            },
+            child: Text('Add', style: GoogleFonts.poppins(color: _green, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _saveCardAndBuy() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_selectedAddress == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Please select a delivery address', style: GoogleFonts.poppins())),
+      );
+      return;
+    }
     setState(() => _isBuying = true);
 
     try {
@@ -168,6 +345,7 @@ class _PurchasePageState extends State<PurchasePage>
       'currency': widget.currency,
       'city': widget.city,
       'imageUrl': widget.imageUrl,
+      'deliveryAddress': _selectedAddress,
       'cardLastFour': lastFour,
       'purchaseStatus': 'complete',
       'orderStatus': 'pending',
@@ -229,6 +407,48 @@ class _PurchasePageState extends State<PurchasePage>
                       expiryCtrl: _expiryCtrl,
                       cvvCtrl: _cvvCtrl,
                       cvvFocus: _cvvFocus,
+                    ),
+                    const SizedBox(height: 24),
+                    GestureDetector(
+                      onTap: _showAddressSelection,
+                      child: Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: _selectedAddress == null ? Colors.grey.shade200 : _green,
+                            width: 1.5,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.location_on_outlined, color: _selectedAddress == null ? Colors.grey : _green, size: 22),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Delivery Address',
+                                      style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600], fontWeight: FontWeight.w500)),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    _selectedAddress ?? 'Tap to select address',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: _selectedAddress == null ? Colors.grey : const Color(0xFF1A1A2E),
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Icon(Icons.chevron_right, color: Colors.grey[400], size: 20),
+                          ],
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 24),
                     SizedBox(
