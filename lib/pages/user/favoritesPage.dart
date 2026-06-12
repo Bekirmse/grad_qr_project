@@ -183,10 +183,29 @@ class _FavoriteCardState extends State<_FavoriteCard> {
   }
 
   Future<(String, bool)> _getProductInfo() async {
-    final localImageUrl = widget.data['imageUrl']?.toString() ?? '';
+    var localImageUrl = widget.data['imageUrl']?.toString() ?? '';
     debugPrint('🖼️ FavoriteCard[${widget.barcode}] localImageUrl: "$localImageUrl"');
 
-    if (localImageUrl.isNotEmpty) {
+    if (localImageUrl.contains('via.placeholder')) {
+      debugPrint('🖼️ FavoriteCard[${widget.barcode}] placeholder URL detected, fetching real from Firebase');
+      try {
+        final firebaseProduct = await FirebaseFirestore.instance
+            .collection('products')
+            .doc(widget.barcode)
+            .get();
+        if (firebaseProduct.exists) {
+          final realUrl = firebaseProduct.data()?['imageUrl'] ?? '';
+          if (realUrl.isNotEmpty) {
+            localImageUrl = realUrl;
+            debugPrint('🖼️ FavoriteCard[${widget.barcode}] got real URL from Firebase: "$localImageUrl"');
+          }
+        }
+      } catch (e) {
+        debugPrint('🖼️ FavoriteCard[${widget.barcode}] error fetching from Firebase: $e');
+      }
+    }
+
+    if (localImageUrl.isNotEmpty && !localImageUrl.contains('via.placeholder')) {
       try {
         final results = await MarketApiService.searchProductInCity(widget.barcode, 'All');
         final hasDiscount = results.isNotEmpty && results.any((r) => r.discountPrice != null && r.discountPrice! < r.price);
@@ -198,7 +217,7 @@ class _FavoriteCardState extends State<_FavoriteCard> {
       }
     }
 
-    debugPrint('🖼️ FavoriteCard[${widget.barcode}] local URL empty, fetching from API');
+    debugPrint('🖼️ FavoriteCard[${widget.barcode}] local URL empty or still placeholder, fetching from API');
     try {
       final results = await MarketApiService.searchProductInCity(widget.barcode, 'All');
       if (results.isNotEmpty) {

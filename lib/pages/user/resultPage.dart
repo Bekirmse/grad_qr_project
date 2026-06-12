@@ -122,6 +122,8 @@ Future<void> _fetchData({bool isRefresh = false}) async {
               .doc(cleanBarcode)
               .get();
 
+          debugPrint('📦 Firebase product exists: ${firebaseProduct.exists}');
+
           String realImageUrl = cityResults.first.photoUrl;
           String brand = '';
           String category = '';
@@ -131,6 +133,11 @@ Future<void> _fetchData({bool isRefresh = false}) async {
             realImageUrl = data['imageUrl'] ?? realImageUrl;
             brand = data['brand'] ?? '';
             category = data['category'] ?? '';
+            debugPrint('📦 Firebase imageUrl: "$realImageUrl"');
+            debugPrint('📦 Firebase brand: "$brand"');
+            debugPrint('📦 Firebase category: "$category"');
+          } else {
+            debugPrint('📦 Product not in Firebase, using API photoUrl: "$realImageUrl"');
           }
 
           setState(() {
