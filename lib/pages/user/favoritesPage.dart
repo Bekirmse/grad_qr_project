@@ -167,17 +167,20 @@ class _FavoriteCard extends StatelessWidget {
     }
   }
 
-  Future<String> _getPhotoUrl() async {
+  Future<(String, bool)> _getProductInfo() async {
     final imageUrl = data['imageUrl']?.toString() ?? '';
-    if (imageUrl.isNotEmpty) return imageUrl;
+    final finalImageUrl = imageUrl.isNotEmpty ? imageUrl : '';
+    bool hasDiscount = false;
 
     try {
       final results = await MarketApiService.searchProductInCity(barcode, 'All');
       if (results.isNotEmpty) {
-        return results.first.photoUrl;
+        final photoUrl = results.first.photoUrl;
+        hasDiscount = results.any((r) => r.discountPrice != null && r.discountPrice! < r.price);
+        return (photoUrl, hasDiscount);
       }
     } catch (_) {}
-    return '';
+    return (finalImageUrl, false);
   }
 
   @override
@@ -217,34 +220,60 @@ class _FavoriteCard extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              FutureBuilder<String>(
-                future: _getPhotoUrl(),
+              FutureBuilder<(String, bool)>(
+                future: _getProductInfo(),
                 builder: (context, snapshot) {
-                  final photoUrl = snapshot.data ?? '';
-                  return Container(
-                    width: 70,
-                    height: 70,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF5F7FA),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: photoUrl.isNotEmpty
-                        ? ClipRRect(
+                  final photoUrl = snapshot.data?.$1 ?? '';
+                  final hasDiscount = snapshot.data?.$2 ?? false;
+
+                  return Stack(
+                    children: [
+                      Container(
+                        width: 70,
+                        height: 70,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF5F7FA),
                           borderRadius: BorderRadius.circular(14),
-                          child: Image.network(
-                            photoUrl,
-                            fit: BoxFit.contain,
-                            errorBuilder: (_, __, ___) => const Icon(
-                              Icons.image_not_supported_outlined,
+                        ),
+                        child: photoUrl.isNotEmpty
+                            ? ClipRRect(
+                              borderRadius: BorderRadius.circular(14),
+                              child: Image.network(
+                                photoUrl,
+                                fit: BoxFit.contain,
+                                errorBuilder: (_, __, ___) => const Icon(
+                                  Icons.image_not_supported_outlined,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                            )
+                            : const Icon(
+                              Icons.shopping_bag_outlined,
                               color: Colors.grey,
+                              size: 30,
+                            ),
+                      ),
+                      if (hasDiscount)
+                        Positioned(
+                          top: 0,
+                          right: 0,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE53935),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              'SALE',
+                              style: GoogleFonts.poppins(
+                                fontSize: 8,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
                             ),
                           ),
-                        )
-                        : const Icon(
-                          Icons.shopping_bag_outlined,
-                          color: Colors.grey,
-                          size: 30,
                         ),
+                    ],
                   );
                 },
               ),
