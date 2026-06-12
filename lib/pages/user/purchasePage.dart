@@ -7,6 +7,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:lottie/lottie.dart';
 
 class PurchasePage extends StatefulWidget {
   final String productName;
@@ -53,6 +54,7 @@ class _PurchasePageState extends State<PurchasePage>
   bool _isLoading = true;
   bool _hasSavedCard = false;
   bool _isBuying = false;
+  bool _isProcessing = false;
   bool _showSuccess = false;
 
   Map<String, dynamic>? _savedCard;
@@ -391,6 +393,8 @@ class _PurchasePageState extends State<PurchasePage>
   }
 
   Future<void> _completePurchase(String lastFour) async {
+    if (mounted) setState(() => _isProcessing = true);
+
     await FirebaseFirestore.instance.collection('purchases').add({
       'userId': _user!.uid,
       'userEmail': _user.email ?? '',
@@ -407,11 +411,19 @@ class _PurchasePageState extends State<PurchasePage>
       'orderStatus': 'pending',
       'timestamp': FieldValue.serverTimestamp(),
     });
-    if (mounted) setState(() => _showSuccess = true);
+
+    await Future.delayed(const Duration(seconds: 3));
+    if (mounted) {
+      setState(() {
+        _isProcessing = false;
+        _showSuccess = true;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_isProcessing) return _buildProcessing();
     if (_showSuccess) return _buildSuccess();
 
     return Scaffold(
@@ -562,6 +574,45 @@ class _PurchasePageState extends State<PurchasePage>
                 ],
               ),
             ),
+    );
+  }
+
+  Widget _buildProcessing() {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 150,
+              height: 150,
+              child: Lottie.asset(
+                'assets/animations/card_processing.json',
+                fit: BoxFit.contain,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Processing Payment',
+              style: GoogleFonts.poppins(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: const Color(0xFF1A1A2E),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Please wait while we verify your card...',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                color: Colors.grey[600],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
