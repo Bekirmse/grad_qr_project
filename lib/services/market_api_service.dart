@@ -110,7 +110,7 @@ class MarketApiService {
     debugPrint('City mapping: $city → $apiCity');
 
     final uri = Uri.parse(
-        '$cleanUrl/api/products/search?barcode=${Uri.encodeComponent(barcode)}&city=${Uri.encodeComponent(apiCity)}');
+        '$cleanUrl/api/products/findbybarccodenumber?barcode=${Uri.encodeComponent(barcode)}&city=${Uri.encodeComponent(apiCity)}');
     debugPrint('Full API URI: $uri');
 
     try {
