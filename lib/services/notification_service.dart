@@ -20,6 +20,28 @@ class NotificationService {
     });
   }
 
+  static Future<void> sendDiscountNotification({
+    required String userId,
+    required String productName,
+    required String barcode,
+    required double originalPrice,
+    required double discountPrice,
+    String? marketName,
+  }) async {
+    await _db.collection('notifications').add({
+      'userId': userId,
+      'type': 'discount_alert',
+      'productName': productName,
+      'barcode': barcode,
+      'marketName': marketName,
+      'originalPrice': originalPrice,
+      'discountPrice': discountPrice,
+      'savings': originalPrice - discountPrice,
+      'read': false,
+      'timestamp': FieldValue.serverTimestamp(),
+    });
+  }
+
   static Stream<List<Map<String, dynamic>>> getNotifications(String userId) {
     return _db
         .collection('notifications')

@@ -124,7 +124,7 @@ Future<void> _fetchData({bool isRefresh = false}) async {
               'category': '',
               'imageUrl': cityResults.first.photoUrl,
             };
-            _prices =
+            final priceList =
                 cityResults
                     .map(
                       (r) => {
@@ -136,6 +136,18 @@ Future<void> _fetchData({bool isRefresh = false}) async {
                       },
                     )
                     .toList();
+            priceList.sort((a, b) {
+              final aEff = (a['discountPrice'] != null
+                      ? double.tryParse(a['discountPrice'].toString())
+                      : null) ??
+                  (double.tryParse(a['price'].toString()) ?? 0.0);
+              final bEff = (b['discountPrice'] != null
+                      ? double.tryParse(b['discountPrice'].toString())
+                      : null) ??
+                  (double.tryParse(b['price'].toString()) ?? 0.0);
+              return aEff.compareTo(bEff);
+            });
+            _prices = priceList;
             _isFavorite = isFav;
             _isLoading = false;
             _isRefreshing = false;
@@ -755,94 +767,140 @@ Future<void> _fetchData({bool isRefresh = false}) async {
     final discountPrice = priceData['discountPrice'] != null
         ? double.tryParse(priceData['discountPrice'].toString())
         : null;
+    final effectivePrice = discountPrice ?? price;
     final currency = priceData['currency'] ?? 'TRY';
     final marketName = priceData['marketName'] ?? 'Unknown Market';
     final logoUrl = priceData['marketLogoUrl']?.toString() ?? '';
 
-    return Stack(
-      children: [
-        GestureDetector(
-          onTap: () => _showQuantityDialog(marketName, price, discountPrice, currency),
-          child: Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(18),
-              border: isBest ? Border.all(color: const Color(0xFF2E7D32), width: 2) : null,
-              boxShadow: [BoxShadow(
-                color: isBest ? const Color(0xFF2E7D32).withValues(alpha: 0.12) : Colors.black.withValues(alpha: 0.04),
-                blurRadius: 12, offset: const Offset(0, 4),
-              )],
+    return GestureDetector(
+      onTap: () => _showQuantityDialog(marketName, price, discountPrice, currency),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: isBest ? Border.all(color: const Color(0xFF2E7D32), width: 2) : null,
+          boxShadow: [
+            BoxShadow(
+              color: isBest
+                  ? const Color(0xFF2E7D32).withValues(alpha: 0.12)
+                  : Colors.black.withValues(alpha: 0.04),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
             ),
-            child: Row(
-            children: [
-              Container(
-                width: 54, height: 54,
-                decoration: BoxDecoration(
-                  color: isBest ? const Color(0xFFE8F5E9) : const Color(0xFFF5F7FA),
-                  shape: BoxShape.circle,
-                ),
-                child: logoUrl.isNotEmpty
-                    ? ClipOval(child: Image.network(logoUrl, fit: BoxFit.contain, errorBuilder: (_, __, ___) => Icon(Icons.store_rounded, color: isBest ? const Color(0xFF2E7D32) : Colors.grey, size: 26)))
-                    : Icon(Icons.store_rounded, color: isBest ? const Color(0xFF2E7D32) : Colors.grey, size: 26),
+          ],
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Market icon
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: isBest ? const Color(0xFFE8F5E9) : const Color(0xFFF5F7FA),
+                shape: BoxShape.circle,
               ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(marketName, style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 15, color: const Color(0xFF1A1A2E))),
-                    if (isBest)
-                      Container(
-                        margin: const EdgeInsets.only(top: 4),
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(color: const Color(0xFFE8F5E9), borderRadius: BorderRadius.circular(6)),
-                        child: Text('Best Deal', style: GoogleFonts.poppins(color: const Color(0xFF2E7D32), fontSize: 10, fontWeight: FontWeight.w700)),
+              child: logoUrl.isNotEmpty
+                  ? ClipOval(
+                      child: Image.network(
+                        logoUrl,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) => Icon(
+                          Icons.store_rounded,
+                          color: isBest ? const Color(0xFF2E7D32) : Colors.grey,
+                          size: 24,
+                        ),
                       ),
-                  ],
-                ),
-              ),
-              if (discountPrice != null)
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      '${price.toStringAsFixed(2)} $currency',
-                      style: GoogleFonts.poppins(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey,
-                        decoration: TextDecoration.lineThrough,
+                    )
+                  : Icon(
+                      Icons.store_rounded,
+                      color: isBest ? const Color(0xFF2E7D32) : Colors.grey,
+                      size: 24,
+                    ),
+            ),
+            const SizedBox(width: 12),
+            // Market name + best deal badge
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    marketName,
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      color: const Color(0xFF1A1A2E),
+                    ),
+                  ),
+                  if (isBest)
+                    Container(
+                      margin: const EdgeInsets.only(top: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE8F5E9),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        '🏆 Best Deal',
+                        style: GoogleFonts.poppins(
+                          color: const Color(0xFF2E7D32),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${discountPrice.toStringAsFixed(2)} $currency',
-                      style: GoogleFonts.poppins(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFFE53935),
-                      ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            // Price + Add to Cart
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                if (discountPrice != null)
+                  Text(
+                    '${price.toStringAsFixed(2)} $currency',
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      color: Colors.grey,
+                      decoration: TextDecoration.lineThrough,
                     ),
-                  ],
-                )
-              else
-                Text('${price.toStringAsFixed(2)} $currency',
-                    style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.w700, color: isBest ? const Color(0xFF2E7D32) : const Color(0xFF1A1A2E))),
-            ],
-          ),
-          ),
+                  ),
+                Text(
+                  '${effectivePrice.toStringAsFixed(2)} $currency',
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: discountPrice != null
+                        ? const Color(0xFFE53935)
+                        : isBest
+                            ? const Color(0xFF2E7D32)
+                            : const Color(0xFF1A1A2E),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2E7D32),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    'Add to Cart',
+                    style: GoogleFonts.poppins(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
-        Positioned(
-          bottom: 12, right: 12,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(color: const Color(0xFF2E7D32), borderRadius: BorderRadius.circular(8)),
-            child: Text('Add to Cart', style: GoogleFonts.poppins(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
-          ),
-        ),
-      ],
+      ),
     );
   }
 }

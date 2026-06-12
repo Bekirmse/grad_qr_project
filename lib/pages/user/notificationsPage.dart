@@ -83,10 +83,14 @@ class _NotificationsPageState extends State<NotificationsPage> {
                               Container(
                                 padding: const EdgeInsets.all(10),
                                 decoration: BoxDecoration(
-                                  color: Colors.red.shade50,
+                                  color: type == 'discount_alert' ? Colors.green.shade50 : Colors.red.shade50,
                                   borderRadius: BorderRadius.circular(10),
                                 ),
-                                child: const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 20),
+                                child: Icon(
+                                  type == 'discount_alert' ? Icons.local_offer_rounded : Icons.warning_amber_rounded,
+                                  color: type == 'discount_alert' ? Colors.green : Colors.red,
+                                  size: 20,
+                                ),
                               ),
                               const SizedBox(width: 12),
                               Expanded(
@@ -94,8 +98,16 @@ class _NotificationsPageState extends State<NotificationsPage> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      type == 'order_cancelled' ? 'Order Cancelled' : 'Notification',
-                                      style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 15, color: Colors.red),
+                                      type == 'order_cancelled'
+                                          ? 'Order Cancelled'
+                                          : type == 'discount_alert'
+                                              ? '🎉 Discount Alert!'
+                                              : 'Notification',
+                                      style: GoogleFonts.poppins(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 15,
+                                        color: type == 'discount_alert' ? Colors.green : Colors.red,
+                                      ),
                                     ),
                                     const SizedBox(height: 4),
                                     if (type == 'order_cancelled') ...[
@@ -115,6 +127,42 @@ class _NotificationsPageState extends State<NotificationsPage> {
                                           'Reason: ${n['reason'] ?? 'No reason provided'}',
                                           style: GoogleFonts.poppins(fontSize: 12, color: Colors.red[700]),
                                         ),
+                                      ),
+                                    ] else if (type == 'discount_alert') ...[
+                                      Text(
+                                        '${n['productName'] ?? 'Product'} at ${n['marketName'] ?? 'Store'}',
+                                        style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w500),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Row(
+                                        children: [
+                                          Text(
+                                            '${n['originalPrice']?.toStringAsFixed(2) ?? '0'} TRY',
+                                            style: GoogleFonts.poppins(
+                                              fontSize: 12,
+                                              color: Colors.grey,
+                                              decoration: TextDecoration.lineThrough,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            '${n['discountPrice']?.toStringAsFixed(2) ?? '0'} TRY',
+                                            style: GoogleFonts.poppins(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.green,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            'Save ${n['savings']?.toStringAsFixed(2) ?? '0'} TRY',
+                                            style: GoogleFonts.poppins(
+                                              fontSize: 11,
+                                              color: Colors.green.shade700,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ],
                                   ],

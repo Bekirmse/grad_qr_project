@@ -7,6 +7,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:grad_qr_project/pages/user/resultPage.dart';
 import 'package:grad_qr_project/services/notification_service.dart';
+import 'package:grad_qr_project/services/market_api_service.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -20,6 +21,12 @@ class _HomePageState extends State<HomePage> {
   final TextEditingController _searchController = TextEditingController();
   String _selectedCategory = "All";
   int _currentNavIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkFavoritesForDiscounts();
+  }
 
   Future<String> _fetchUserName() async {
     if (user == null) return "Guest";
@@ -47,6 +54,62 @@ class _HomePageState extends State<HomePage> {
       Navigator.pushNamed(context, '/favorites');
     } else if (index == 3) {
       Navigator.pushNamed(context, '/profile');
+    }
+  }
+
+  Future<void> _checkFavoritesForDiscounts() async {
+    if (user == null) return;
+
+    try {
+      final favSnap = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user!.uid)
+          .collection('favorites')
+          .get();
+
+      if (favSnap.docs.isEmpty) return;
+
+      for (final favDoc in favSnap.docs) {
+        final barcode = favDoc.id;
+        final favData = favDoc.data();
+        final city = (favData['city'] as String?) ?? 'All';
+
+        await _checkDiscountAndNotify(barcode, city, favData);
+      }
+    } catch (e) {
+      if (kDebugMode) print('Error checking favorites for discounts: $e');
+    }
+  }
+
+  Future<void> _checkDiscountAndNotify(
+      String barcode, String city, Map<String, dynamic> favData) async {
+    try {
+      final results = await MarketApiService.searchProductInCity(barcode, city);
+
+      for (final result in results) {
+        if (result.discountPrice != null && result.discountPrice! < result.price) {
+          final existingNotif = await FirebaseFirestore.instance
+              .collection('notifications')
+              .where('userId', isEqualTo: user!.uid)
+              .where('type', isEqualTo: 'discount_alert')
+              .where('barcode', isEqualTo: barcode)
+              .where('marketName', isEqualTo: result.marketName)
+              .get();
+
+          if (existingNotif.docs.isEmpty) {
+            await NotificationService.sendDiscountNotification(
+              userId: user!.uid,
+              productName: result.name,
+              barcode: barcode,
+              originalPrice: result.price,
+              discountPrice: result.discountPrice!,
+              marketName: result.marketName,
+            );
+          }
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) print('Error checking discount for $barcode: $e');
     }
   }
 
