@@ -169,28 +169,34 @@ class _FavoriteCard extends StatelessWidget {
 
   Future<(String, bool)> _getProductInfo() async {
     final localImageUrl = data['imageUrl']?.toString() ?? '';
+    debugPrint('🖼️ FavoriteCard[$barcode] localImageUrl: "$localImageUrl"');
 
     if (localImageUrl.isNotEmpty) {
       try {
         final results = await MarketApiService.searchProductInCity(barcode, 'All');
         final hasDiscount = results.isNotEmpty && results.any((r) => r.discountPrice != null && r.discountPrice! < r.price);
+        debugPrint('🖼️ FavoriteCard[$barcode] found discount: $hasDiscount');
         return (localImageUrl, hasDiscount);
       } catch (e) {
+        debugPrint('🖼️ FavoriteCard[$barcode] error checking discount: $e');
         return (localImageUrl, false);
       }
     }
 
+    debugPrint('🖼️ FavoriteCard[$barcode] local URL empty, fetching from API');
     try {
       final results = await MarketApiService.searchProductInCity(barcode, 'All');
       if (results.isNotEmpty) {
         final photoUrl = results.first.photoUrl;
         final hasDiscount = results.any((r) => r.discountPrice != null && r.discountPrice! < r.price);
+        debugPrint('🖼️ FavoriteCard[$barcode] API photoUrl: "$photoUrl", hasDiscount: $hasDiscount');
         return (photoUrl.isNotEmpty ? photoUrl : localImageUrl, hasDiscount);
       }
     } catch (e) {
-      debugPrint('Error fetching product info for $barcode: $e');
+      debugPrint('🖼️ FavoriteCard[$barcode] Error fetching from API: $e');
     }
 
+    debugPrint('🖼️ FavoriteCard[$barcode] returning empty URL');
     return (localImageUrl, false);
   }
 
