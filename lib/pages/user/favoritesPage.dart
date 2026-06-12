@@ -238,9 +238,9 @@ class _FavoriteCardState extends State<_FavoriteCard> {
             context,
             MaterialPageRoute(
               builder: (context) => ResultPage(
-                barcode: barcode,
-                productData: data,
-                preferredCity: (data['city'] as String?) ?? 'All',
+                barcode: widget.barcode,
+                productData: widget.data,
+                preferredCity: (widget.data['city'] as String?) ?? 'All',
               ),
             ),
           );
