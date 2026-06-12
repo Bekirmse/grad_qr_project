@@ -113,6 +113,7 @@ class _PurchasePageState extends State<PurchasePage>
           .limit(1).get();
       if (snap.docs.isNotEmpty) {
         final card = snap.docs.first.data();
+        _numberCtrl.text = _decode(card['encryptedNumber'] ?? '');
         _nameCtrl.text = card['cardHolder'] ?? '';
         _expiryCtrl.text = card['expiry'] ?? '';
       }
@@ -121,6 +122,8 @@ class _PurchasePageState extends State<PurchasePage>
   }
 
   String _encode(String value) => base64Encode(utf8.encode(value));
+
+  String _decode(String encoded) => utf8.decode(base64Decode(encoded));
 
   Future<void> _showAddressSelection() async {
     if (_user == null) return;
