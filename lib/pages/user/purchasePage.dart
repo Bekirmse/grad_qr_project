@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
+import '../../services/notification_service.dart';
 
 class PurchasePage extends StatefulWidget {
   final String productName;
@@ -401,6 +402,18 @@ Future<void> _completePurchase(String lastFour) async {
       'orderStatus': 'pending',
       'timestamp': FieldValue.serverTimestamp(),
     });
+
+    await NotificationService.sendOrderReceivedNotification(
+      userId: _user!.uid,
+      productName: widget.productName,
+      marketName: widget.marketName,
+    );
+
+    await NotificationService.sendOrderPreparingNotification(
+      userId: _user!.uid,
+      productName: widget.productName,
+      marketName: widget.marketName,
+    );
 
     await Future.delayed(const Duration(seconds: 3));
     if (mounted) {

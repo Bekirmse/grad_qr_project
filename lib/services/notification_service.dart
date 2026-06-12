@@ -42,6 +42,36 @@ class NotificationService {
     });
   }
 
+  static Future<void> sendOrderReceivedNotification({
+    required String userId,
+    required String productName,
+    required String marketName,
+  }) async {
+    await _db.collection('notifications').add({
+      'userId': userId,
+      'type': 'order_received',
+      'productName': productName,
+      'marketName': marketName,
+      'read': false,
+      'timestamp': FieldValue.serverTimestamp(),
+    });
+  }
+
+  static Future<void> sendOrderPreparingNotification({
+    required String userId,
+    required String productName,
+    required String marketName,
+  }) async {
+    await _db.collection('notifications').add({
+      'userId': userId,
+      'type': 'order_preparing',
+      'productName': productName,
+      'marketName': marketName,
+      'read': false,
+      'timestamp': FieldValue.serverTimestamp(),
+    });
+  }
+
   static Stream<List<Map<String, dynamic>>> getNotifications(String userId) {
     return _db
         .collection('notifications')

@@ -83,12 +83,26 @@ class _NotificationsPageState extends State<NotificationsPage> {
                               Container(
                                 padding: const EdgeInsets.all(10),
                                 decoration: BoxDecoration(
-                                  color: type == 'discount_alert' ? Colors.green.shade50 : Colors.red.shade50,
+                                  color: type == 'discount_alert'
+                                      ? Colors.green.shade50
+                                      : type == 'order_received' || type == 'order_preparing'
+                                          ? Colors.blue.shade50
+                                          : Colors.red.shade50,
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: Icon(
-                                  type == 'discount_alert' ? Icons.local_offer_rounded : Icons.warning_amber_rounded,
-                                  color: type == 'discount_alert' ? Colors.green : Colors.red,
+                                  type == 'discount_alert'
+                                      ? Icons.local_offer_rounded
+                                      : type == 'order_received'
+                                          ? Icons.check_circle_rounded
+                                          : type == 'order_preparing'
+                                              ? Icons.local_shipping_rounded
+                                              : Icons.warning_amber_rounded,
+                                  color: type == 'discount_alert'
+                                      ? Colors.green
+                                      : type == 'order_received' || type == 'order_preparing'
+                                          ? Colors.blue
+                                          : Colors.red,
                                   size: 20,
                                 ),
                               ),
@@ -102,11 +116,19 @@ class _NotificationsPageState extends State<NotificationsPage> {
                                           ? 'Order Cancelled'
                                           : type == 'discount_alert'
                                               ? '🎉 Discount Alert!'
-                                              : 'Notification',
+                                              : type == 'order_received'
+                                                  ? 'Order Received'
+                                                  : type == 'order_preparing'
+                                                      ? 'Order Preparing'
+                                                      : 'Notification',
                                       style: GoogleFonts.poppins(
                                         fontWeight: FontWeight.w600,
                                         fontSize: 15,
-                                        color: type == 'discount_alert' ? Colors.green : Colors.red,
+                                        color: type == 'discount_alert'
+                                            ? Colors.green
+                                            : type == 'order_received' || type == 'order_preparing'
+                                                ? Colors.blue[700]
+                                                : Colors.red,
                                       ),
                                     ),
                                     const SizedBox(height: 4),
@@ -126,6 +148,26 @@ class _NotificationsPageState extends State<NotificationsPage> {
                                         child: Text(
                                           'Reason: ${n['reason'] ?? 'No reason provided'}',
                                           style: GoogleFonts.poppins(fontSize: 12, color: Colors.red[700]),
+                                        ),
+                                      ),
+                                    ] else if (type == 'order_received' || type == 'order_preparing') ...[
+                                      Text(
+                                        '${n['productName'] ?? ''} at ${n['marketName'] ?? ''}',
+                                        style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w500),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: Colors.blue.shade50,
+                                          borderRadius: BorderRadius.circular(8),
+                                          border: Border.all(color: Colors.blue.shade200),
+                                        ),
+                                        child: Text(
+                                          type == 'order_received'
+                                              ? 'Seller has received your order and is processing it.'
+                                              : 'Your product is being prepared to ship.',
+                                          style: GoogleFonts.poppins(fontSize: 12, color: Colors.blue[700]),
                                         ),
                                       ),
                                     ] else if (type == 'discount_alert') ...[
