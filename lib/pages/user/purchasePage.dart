@@ -625,17 +625,13 @@ class _PurchasePageState extends State<PurchasePage>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              TweenAnimationBuilder<double>(
-                tween: Tween(begin: 0.0, end: 1.0),
-                duration: const Duration(milliseconds: 600),
-                curve: Curves.elasticOut,
-                builder: (_, v, __) => Transform.scale(
-                  scale: v,
-                  child: Container(
-                    width: 100, height: 100,
-                    decoration: const BoxDecoration(color: _green, shape: BoxShape.circle),
-                    child: const Icon(Icons.check_rounded, color: Colors.white, size: 52),
-                  ),
+              SizedBox(
+                width: 250,
+                height: 250,
+                child: Lottie.asset(
+                  'assets/animations/purchase_complate.json',
+                  fit: BoxFit.contain,
+                  repeat: false,
                 ),
               ),
               const SizedBox(height: 24),
