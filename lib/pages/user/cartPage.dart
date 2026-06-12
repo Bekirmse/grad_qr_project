@@ -1,10 +1,8 @@
 // ignore_for_file: file_names
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:lottie/lottie.dart';
 import 'package:grad_qr_project/services/cart_service.dart';
 import 'purchasePage.dart';
 
@@ -25,78 +23,20 @@ class _CartPageState extends State<CartPage> {
       return;
     }
 
-    try {
-      final snap = await FirebaseFirestore.instance
-          .collection('users').doc(_user.uid)
-          .collection('paymentMethods')
-          .limit(1).get();
-
-      if (snap.docs.isNotEmpty) {
-        await _completePurchase(snap.docs.first.data()['lastFour']);
-      } else {
-        if (!mounted) return;
-        final item = cartService.items.first;
-        Navigator.push(context, MaterialPageRoute(
-          builder: (_) => PurchasePage(
-            productName: cartService.items.map((i) => i.productName).join(', '),
-            barcode: item.barcode,
-            price: cartService.total,
-            currency: item.currency,
-            marketName: cartService.items.map((i) => i.marketName).join(', '),
-            city: item.city,
-            imageUrl: item.imageUrl,
-            isCart: true,
-          ),
-        )).then((_) => cartService.clear());
-      }
-    } catch (_) {}
-  }
-
-  Future<void> _completePurchase(String lastFour) async {
-    for (final item in cartService.items) {
-      final finalPrice = item.discountPrice ?? item.price;
-      await FirebaseFirestore.instance.collection('purchases').add({
-        'userId': _user!.uid,
-        'userEmail': _user.email,
-        'barcode': item.barcode,
-        'productName': item.productName,
-        'marketName': item.marketName,
-        'originalPrice': item.price * item.quantity,
-        'price': finalPrice * item.quantity,
-        'discountPrice': item.discountPrice != null ? item.discountPrice! * item.quantity : null,
-        'currency': item.currency,
-        'city': item.city,
-        'cardLastFour': lastFour,
-        'purchaseStatus': 'complete',
-        'orderStatus': 'pending',
-        'timestamp': FieldValue.serverTimestamp(),
-      });
-    }
     if (!mounted) return;
-    cartService.clear();
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        child: Center(
-          child: Lottie.asset(
-            'assets/animations/pizza_delivery.json',
-            width: 300,
-            height: 300,
-            repeat: false,
-          ),
-        ),
+    final item = cartService.items.first;
+    Navigator.push(context, MaterialPageRoute(
+      builder: (_) => PurchasePage(
+        productName: cartService.items.map((i) => i.productName).join(', '),
+        barcode: item.barcode,
+        price: cartService.total,
+        currency: item.currency,
+        marketName: cartService.items.map((i) => i.marketName).join(', '),
+        city: item.city,
+        imageUrl: item.imageUrl,
+        isCart: true,
       ),
-    );
-
-    await Future.delayed(const Duration(seconds: 4));
-    if (mounted) {
-      Navigator.pop(context);
-      Navigator.pushReplacementNamed(context, '/home');
-    }
+    )).then((_) => cartService.clear());
   }
 
   @override
