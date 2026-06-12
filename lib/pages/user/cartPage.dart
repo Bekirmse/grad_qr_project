@@ -53,17 +53,21 @@ class _CartPageState extends State<CartPage> {
 
   Future<void> _completePurchase(String lastFour) async {
     for (final item in cartService.items) {
+      final finalPrice = item.discountPrice ?? item.price;
       await FirebaseFirestore.instance.collection('purchases').add({
         'userId': _user!.uid,
         'userEmail': _user.email,
         'barcode': item.barcode,
         'productName': item.productName,
         'marketName': item.marketName,
-        'price': item.price * item.quantity,
+        'originalPrice': item.price * item.quantity,
+        'price': finalPrice * item.quantity,
+        'discountPrice': item.discountPrice != null ? item.discountPrice! * item.quantity : null,
         'currency': item.currency,
         'city': item.city,
         'cardLastFour': lastFour,
-        'status': 'completed',
+        'purchaseStatus': 'complete',
+        'orderStatus': 'pending',
         'timestamp': FieldValue.serverTimestamp(),
       });
     }
@@ -148,8 +152,32 @@ class _CartPageState extends State<CartPage> {
                                   const SizedBox(height: 4),
                                   Row(
                                     children: [
-                                      Text('${item.price.toStringAsFixed(2)} ${item.currency}',
-                                          style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 13, color: const Color(0xFF2E7D32))),
+                                      if (item.discountPrice != null)
+                                        Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              '${item.price.toStringAsFixed(2)} ${item.currency}',
+                                              style: GoogleFonts.poppins(
+                                                fontWeight: FontWeight.w600,
+                                                fontSize: 11,
+                                                color: Colors.grey,
+                                                decoration: TextDecoration.lineThrough,
+                                              ),
+                                            ),
+                                            Text(
+                                              '${item.discountPrice!.toStringAsFixed(2)} ${item.currency}',
+                                              style: GoogleFonts.poppins(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 13,
+                                                color: const Color(0xFFE53935),
+                                              ),
+                                            ),
+                                          ],
+                                        )
+                                      else
+                                        Text('${item.price.toStringAsFixed(2)} ${item.currency}',
+                                            style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 13, color: const Color(0xFF2E7D32))),
                                       const SizedBox(width: 12),
                                       Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),

@@ -8,6 +8,7 @@ class MarketSearchResult {
   final String name;
   final String photoUrl;
   final double price;
+  final double? discountPrice;
   final String marketName;
 
   MarketSearchResult({
@@ -16,6 +17,7 @@ class MarketSearchResult {
     required this.photoUrl,
     required this.price,
     required this.marketName,
+    this.discountPrice,
   });
 
   factory MarketSearchResult.fromJson(Map<String, dynamic> json) {
@@ -25,6 +27,9 @@ class MarketSearchResult {
       photoUrl: json['photoUrl']?.toString() ?? '',
       price: (json['price'] as num).toDouble(),
       marketName: json['marketName']?.toString() ?? '',
+      discountPrice: json['discountPrice'] != null
+          ? (json['discountPrice'] as num).toDouble()
+          : null,
     );
   }
 }

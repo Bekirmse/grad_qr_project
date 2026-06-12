@@ -131,6 +131,7 @@ Future<void> _fetchData({bool isRefresh = false}) async {
                         'marketName': r.marketName,
                         'marketLogoUrl': '',
                         'price': r.price,
+                        'discountPrice': r.discountPrice,
                         'currency': 'TRY',
                       },
                     )
@@ -174,8 +175,9 @@ Future<void> _fetchData({bool isRefresh = false}) async {
     }
   }
 
-  void _showQuantityDialog(String marketName, double price, String currency) {
+  void _showQuantityDialog(String marketName, double price, double? discountPrice, String currency) {
     int qty = 1;
+    final displayPrice = discountPrice ?? price;
     showDialog(
       context: context,
       builder: (_) => StatefulBuilder(
@@ -193,8 +195,34 @@ Future<void> _fetchData({bool isRefresh = false}) async {
                 ],
               ),
               const SizedBox(height: 16),
-              Text('${(price * qty).toStringAsFixed(2)} $currency',
-                  style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFF2E7D32))),
+              if (discountPrice != null)
+                Column(
+                  children: [
+                    Text(
+                      '${(price * qty).toStringAsFixed(2)} $currency',
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey,
+                        decoration: TextDecoration.lineThrough,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${(discountPrice * qty).toStringAsFixed(2)} $currency',
+                      style: GoogleFonts.poppins(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFFE53935),
+                      ),
+                    ),
+                  ],
+                )
+              else
+                Text(
+                  '${(displayPrice * qty).toStringAsFixed(2)} $currency',
+                  style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFF2E7D32)),
+                ),
             ],
           ),
           actions: [
@@ -206,6 +234,7 @@ Future<void> _fetchData({bool isRefresh = false}) async {
                   productName: _product!['productName'] ?? 'Unknown',
                   marketName: marketName,
                   price: price,
+                  discountPrice: discountPrice,
                   currency: currency,
                   city: _selectedCity,
                   imageUrl: _product!['imageUrl'] ?? '',
@@ -645,8 +674,13 @@ Future<void> _fetchData({bool isRefresh = false}) async {
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
                   sliver: SliverList(
                     delegate: SliverChildBuilderDelegate(
-                      (context, index) =>
-                          _buildPriceCard(_prices[index], index == 0),
+                      (context, index) {
+                        final priceData = _prices[index];
+                        return _buildPriceCard(
+                          priceData,
+                          index == 0,
+                        );
+                      },
                       childCount: _prices.length,
                     ),
                   ),
@@ -718,6 +752,9 @@ Future<void> _fetchData({bool isRefresh = false}) async {
 
   Widget _buildPriceCard(Map<String, dynamic> priceData, bool isBest) {
     final price = double.tryParse(priceData['price'].toString()) ?? 0.0;
+    final discountPrice = priceData['discountPrice'] != null
+        ? double.tryParse(priceData['discountPrice'].toString())
+        : null;
     final currency = priceData['currency'] ?? 'TRY';
     final marketName = priceData['marketName'] ?? 'Unknown Market';
     final logoUrl = priceData['marketLogoUrl']?.toString() ?? '';
@@ -725,7 +762,7 @@ Future<void> _fetchData({bool isRefresh = false}) async {
     return Stack(
       children: [
         GestureDetector(
-          onTap: () => _showQuantityDialog(marketName, price, currency),
+          onTap: () => _showQuantityDialog(marketName, price, discountPrice, currency),
           child: Container(
             margin: const EdgeInsets.only(bottom: 12),
             padding: const EdgeInsets.all(16),
@@ -766,8 +803,33 @@ Future<void> _fetchData({bool isRefresh = false}) async {
                   ],
                 ),
               ),
-              Text('${price.toStringAsFixed(2)} $currency',
-                  style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.w700, color: isBest ? const Color(0xFF2E7D32) : const Color(0xFF1A1A2E))),
+              if (discountPrice != null)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      '${price.toStringAsFixed(2)} $currency',
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey,
+                        decoration: TextDecoration.lineThrough,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${discountPrice.toStringAsFixed(2)} $currency',
+                      style: GoogleFonts.poppins(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFFE53935),
+                      ),
+                    ),
+                  ],
+                )
+              else
+                Text('${price.toStringAsFixed(2)} $currency',
+                    style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.w700, color: isBest ? const Color(0xFF2E7D32) : const Color(0xFF1A1A2E))),
             ],
           ),
           ),

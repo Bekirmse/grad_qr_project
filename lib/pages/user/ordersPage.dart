@@ -91,8 +91,32 @@ class OrdersPage extends StatelessWidget {
                                     Text(p['productName'] ?? '', style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 14)),
                                     Text(p['marketName'] ?? '', style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey)),
                                     const SizedBox(height: 4),
-                                    Text('${p['price']?.toStringAsFixed(2) ?? '0'} ${p['currency'] ?? 'TRY'}',
-                                        style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 13, color: const Color(0xFF2E7D32))),
+                                    if (p['discountPrice'] != null)
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            '${(p['originalPrice'] as num?)?.toStringAsFixed(2) ?? '0'} ${p['currency'] ?? 'TRY'}',
+                                            style: GoogleFonts.poppins(
+                                              fontWeight: FontWeight.w600,
+                                              fontSize: 11,
+                                              color: Colors.grey,
+                                              decoration: TextDecoration.lineThrough,
+                                            ),
+                                          ),
+                                          Text(
+                                            '${p['price']?.toStringAsFixed(2) ?? '0'} ${p['currency'] ?? 'TRY'}',
+                                            style: GoogleFonts.poppins(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 13,
+                                              color: const Color(0xFFE53935),
+                                            ),
+                                          ),
+                                        ],
+                                      )
+                                    else
+                                      Text('${p['price']?.toStringAsFixed(2) ?? '0'} ${p['currency'] ?? 'TRY'}',
+                                          style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 13, color: const Color(0xFF2E7D32))),
                                   ],
                                 ),
                               ),

@@ -5,6 +5,7 @@ class CartItem {
   final String productName;
   final String marketName;
   final double price;
+  final double? discountPrice;
   final String currency;
   final String city;
   final String imageUrl;
@@ -18,6 +19,7 @@ class CartItem {
     required this.currency,
     required this.city,
     required this.imageUrl,
+    this.discountPrice,
     this.quantity = 1,
   });
 }
@@ -27,7 +29,10 @@ class CartService extends ChangeNotifier {
 
   List<CartItem> get items => _items;
 
-  double get total => _items.fold(0, (sum, item) => sum + (item.price * item.quantity));
+  double get total => _items.fold(0, (sum, item) {
+    final price = item.discountPrice ?? item.price;
+    return sum + (price * item.quantity);
+  });
 
   void addItem(CartItem item) {
     try {
