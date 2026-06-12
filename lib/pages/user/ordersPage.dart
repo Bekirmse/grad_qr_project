@@ -188,13 +188,11 @@ class OrdersPage extends StatelessWidget {
     const grey = Color(0xFFE0E0E0);
     const red = Colors.red;
 
-    final steps = ['Sipariş verildi', 'Sipariş alındı', 'Teslimat', 'Teslim edildi'];
+    final steps = ['Purchase', 'Order Received', 'Delivery', 'Delivered'];
 
-    int completedStep = 0;
+    int completedStep = 1;
     if (status == 'completed') {
       completedStep = 3;
-    } else if (status == 'pending') {
-      completedStep = 0;
     } else if (status == 'cancelled') {
       completedStep = -1;
     }
