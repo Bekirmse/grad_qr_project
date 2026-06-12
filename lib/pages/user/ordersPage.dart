@@ -201,68 +201,73 @@ class OrdersPage extends StatelessWidget {
 
     return Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          child: Row(
-            children: List.generate(steps.length, (i) {
-              final isCancelled = status == 'cancelled';
-              final dotColor = isCancelled
-                  ? (i == 0 ? green : red)
-                  : (i <= completedStep ? green : grey);
-
-              return Expanded(
-                child: Column(
-                  children: [
-                    SizedBox(
-                      height: 40,
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          if (i < steps.length - 1)
-                            Positioned(
-                              left: 20,
-                              right: -20,
-                              child: Container(
-                                height: 2,
-                                color: (i < completedStep || (status == 'completed' && i < 3))
-                                    ? green
-                                    : grey,
-                              ),
-                            ),
-                          Container(
-                            width: 16,
-                            height: 16,
-                            decoration: BoxDecoration(
-                              color: dotColor,
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white, width: 3),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: dotColor.withValues(alpha: 0.3),
-                                  blurRadius: 4,
-                                )
-                              ],
-                            ),
-                          ),
-                        ],
+        SizedBox(
+          height: 60,
+          child: Stack(
+            children: [
+              Positioned(
+                top: 8,
+                left: 0,
+                right: 0,
+                child: Row(
+                  children: List.generate(steps.length - 1, (i) {
+                    final lineColor = (i < completedStep || (status == 'completed' && i < 3))
+                        ? green
+                        : grey;
+                    return Expanded(
+                      child: Container(
+                        height: 2,
+                        color: lineColor,
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      steps[i],
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.poppins(
-                        fontSize: 9,
-                        color: Colors.grey[600],
-                        fontWeight: FontWeight.w500,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
+                    );
+                  }),
                 ),
-              );
-            }),
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: List.generate(steps.length, (i) {
+                  final isCancelled = status == 'cancelled';
+                  final dotColor = isCancelled
+                      ? (i == 0 ? green : red)
+                      : (i <= completedStep ? green : grey);
+
+                  return Column(
+                    children: [
+                      Container(
+                        width: 18,
+                        height: 18,
+                        decoration: BoxDecoration(
+                          color: dotColor,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                          boxShadow: [
+                            BoxShadow(
+                              color: dotColor.withValues(alpha: 0.3),
+                              blurRadius: 4,
+                            )
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        width: 70,
+                        child: Text(
+                          steps[i],
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.poppins(
+                            fontSize: 9,
+                            color: Colors.grey[600],
+                            fontWeight: FontWeight.w500,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  );
+                }),
+              ),
+            ],
           ),
         ),
       ],
