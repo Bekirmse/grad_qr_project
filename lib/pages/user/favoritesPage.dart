@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:grad_qr_project/services/market_api_service.dart';
 import 'resultPage.dart';
 
 class FavoritesPage extends StatelessWidget {
@@ -166,9 +167,21 @@ class _FavoriteCard extends StatelessWidget {
     }
   }
 
+  Future<String> _getPhotoUrl() async {
+    final imageUrl = data['imageUrl']?.toString() ?? '';
+    if (imageUrl.isNotEmpty) return imageUrl;
+
+    try {
+      final results = await MarketApiService.searchProductInCity(barcode, 'All');
+      if (results.isNotEmpty) {
+        return results.first.photoUrl;
+      }
+    } catch (_) {}
+    return '';
+  }
+
   @override
   Widget build(BuildContext context) {
-    final imageUrl = data['imageUrl']?.toString() ?? '';
     final productName = data['productName']?.toString() ?? 'Unknown Product';
     final category = data['category']?.toString() ?? '';
     final brand = data['brand']?.toString() ?? '';
@@ -204,25 +217,27 @@ class _FavoriteCard extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              Container(
-                width: 70,
-                height: 70,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF5F7FA),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child:
-                    imageUrl.isNotEmpty
+              FutureBuilder<String>(
+                future: _getPhotoUrl(),
+                builder: (context, snapshot) {
+                  final photoUrl = snapshot.data ?? '';
+                  return Container(
+                    width: 70,
+                    height: 70,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF5F7FA),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: photoUrl.isNotEmpty
                         ? ClipRRect(
                           borderRadius: BorderRadius.circular(14),
                           child: Image.network(
-                            imageUrl,
+                            photoUrl,
                             fit: BoxFit.contain,
-                            errorBuilder:
-                                (_, __, ___) => const Icon(
-                                  Icons.image_not_supported_outlined,
-                                  color: Colors.grey,
-                                ),
+                            errorBuilder: (_, __, ___) => const Icon(
+                              Icons.image_not_supported_outlined,
+                              color: Colors.grey,
+                            ),
                           ),
                         )
                         : const Icon(
@@ -230,6 +245,8 @@ class _FavoriteCard extends StatelessWidget {
                           color: Colors.grey,
                           size: 30,
                         ),
+                  );
+                },
               ),
               const SizedBox(width: 16),
               Expanded(
