@@ -62,6 +62,7 @@ class _PurchasePageState extends State<PurchasePage>
   String _expiry = '';
   String _cvv = '';
   String? _selectedAddress;
+  bool _saveCard = false;
 
   static const _green = Color(0xFF2E7D32);
 
@@ -308,16 +309,18 @@ class _PurchasePageState extends State<PurchasePage>
           max(0, _cardNumber.replaceAll(' ', '').length - 4));
       final brand = _cardNumber.startsWith('4') ? 'Visa' : 'Mastercard';
 
-      await FirebaseFirestore.instance
-          .collection('users').doc(_user!.uid)
-          .collection('paymentMethods').doc('primary').set({
-        'lastFour': lastFour,
-        'cardHolder': _nameCtrl.text.trim(),
-        'expiry': _expiryCtrl.text.trim(),
-        'brand': brand,
-        'encryptedNumber': _encode(_cardNumber.replaceAll(' ', '')),
-        'addedAt': FieldValue.serverTimestamp(),
-      });
+      if (_saveCard) {
+        await FirebaseFirestore.instance
+            .collection('users').doc(_user!.uid)
+            .collection('paymentMethods').doc('primary').set({
+          'lastFour': lastFour,
+          'cardHolder': _nameCtrl.text.trim(),
+          'expiry': _expiryCtrl.text.trim(),
+          'brand': brand,
+          'encryptedNumber': _encode(_cardNumber.replaceAll(' ', '')),
+          'addedAt': FieldValue.serverTimestamp(),
+        });
+      }
 
       await _completePurchase(lastFour);
     } finally {
@@ -450,6 +453,30 @@ class _PurchasePageState extends State<PurchasePage>
                         ),
                       ),
                     ),
+                    const SizedBox(height: 20),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF5F7FA),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          Checkbox(
+                            value: _saveCard,
+                            onChanged: (val) => setState(() => _saveCard = val ?? false),
+                            activeColor: _green,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                          ),
+                          Expanded(
+                            child: Text(
+                              'Save card for future purchases',
+                              style: GoogleFonts.poppins(fontSize: 13, color: const Color(0xFF1A1A2E), fontWeight: FontWeight.w500),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                     const SizedBox(height: 24),
                     SizedBox(
                       width: double.infinity,
@@ -464,7 +491,7 @@ class _PurchasePageState extends State<PurchasePage>
                         ),
                         child: _isBuying
                             ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
-                            : Text('Save Card & Buy · ${widget.price.toStringAsFixed(2)} ${widget.currency}',
+                            : Text('Buy · ${widget.price.toStringAsFixed(2)} ${widget.currency}',
                                 style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w600)),
                       ),
                     ),
