@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import '../../services/market_api_service.dart';
+import '../../services/notification_service.dart';
 
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
@@ -21,6 +22,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   final _sections = const [
     'Dashboard',
+    'Orders',
     'Users',
     'Scan Logs',
     'API Settings',
@@ -29,6 +31,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   final _icons = const [
     Icons.dashboard_rounded,
+    Icons.shopping_bag_rounded,
     Icons.people_alt_rounded,
     Icons.qr_code_scanner_rounded,
     Icons.api_rounded,
@@ -38,10 +41,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
   Widget _buildSection(int index) {
     switch (index) {
       case 0: return const _Dashboard();
-      case 1: return const _Users();
-      case 2: return const _ScanLogs();
-      case 3: return const _ApiSettings();
-      case 4: return const _Notifications();
+      case 1: return const _Orders();
+      case 2: return const _Users();
+      case 3: return const _ScanLogs();
+      case 4: return const _ApiSettings();
+      case 5: return const _Notifications();
       default: return const SizedBox.shrink();
     }
   }
@@ -409,6 +413,176 @@ class _Users extends StatelessWidget {
                         ),
                       ],
                     ),
+                  );
+                },
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Orders extends StatefulWidget {
+  const _Orders();
+
+  @override
+  State<_Orders> createState() => _OrdersState();
+}
+
+class _OrdersState extends State<_Orders> {
+  Future<void> _cancelOrder({
+    required BuildContext context,
+    required String purchaseId,
+    required String userId,
+    required String productName,
+    required String marketName,
+  }) async {
+    final reasonCtrl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Cancel Order', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('$productName at $marketName', style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 13)),
+            const SizedBox(height: 16),
+            TextField(
+              controller: reasonCtrl,
+              decoration: InputDecoration(
+                labelText: 'Reason for cancellation',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              ),
+              maxLines: 3,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, false), child: Text('Abort', style: GoogleFonts.poppins())),
+          TextButton(
+            onPressed: () => Navigator.pop(c, reasonCtrl.text.trim().isNotEmpty),
+            child: Text('Confirm', style: GoogleFonts.poppins(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (ok == true && reasonCtrl.text.trim().isNotEmpty) {
+      await FirebaseFirestore.instance.collection('purchases').doc(purchaseId).update({
+        'orderStatus': 'cancelled',
+        'cancellationReason': reasonCtrl.text.trim(),
+        'cancelledAt': FieldValue.serverTimestamp(),
+      });
+      await NotificationService.sendOrderCancelledNotification(
+        userId: userId,
+        productName: productName,
+        marketName: marketName,
+        reason: reasonCtrl.text.trim(),
+      );
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Order cancelled'), backgroundColor: Colors.red),
+      );
+    }
+    reasonCtrl.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Orders', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold)),
+          Text('Track user purchases and manage cancellations', style: GoogleFonts.poppins(color: Colors.grey[500], fontSize: 13)),
+          const SizedBox(height: 20),
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance.collection('purchases').snapshots(),
+            builder: (_, snap) {
+              if (!snap.hasData) return const Center(child: CircularProgressIndicator(color: Color(0xFF2E7D32)));
+              if (snap.data!.docs.isEmpty) return Text('No orders yet.', style: GoogleFonts.poppins(color: Colors.grey));
+              final sortedDocs = snap.data!.docs.toList()
+                ..sort((a, b) {
+                  final aTime = (a.data() as Map)['timestamp'] as Timestamp?;
+                  final bTime = (b.data() as Map)['timestamp'] as Timestamp?;
+                  return (bTime?.toDate() ?? DateTime.now()).compareTo(aTime?.toDate() ?? DateTime.now());
+                });
+              return ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: sortedDocs.length,
+                separatorBuilder: (_, __) => const Divider(height: 1),
+                itemBuilder: (context, i) {
+                  final data = sortedDocs[i].data() as Map<String, dynamic>;
+                  final docId = sortedDocs[i].id;
+                  final ts = data['timestamp'] as Timestamp?;
+                  final orderStatus = data['orderStatus'] as String? ?? 'pending';
+                  final isCancelled = orderStatus == 'cancelled';
+                  final statusColor = isCancelled ? Colors.red : Colors.orange;
+
+                  return ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: CircleAvatar(
+                      backgroundColor: const Color(0xFFE8F5E9),
+                      backgroundImage: (data['imageUrl'] as String?)?.isNotEmpty == true
+                          ? NetworkImage(data['imageUrl'] as String)
+                          : null,
+                      child: (data['imageUrl'] as String?)?.isEmpty != false
+                          ? const Icon(Icons.shopping_bag_rounded, color: Color(0xFF2E7D32), size: 20)
+                          : null,
+                    ),
+                    title: Text(data['productName']?.toString() ?? '',
+                        style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 14)),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('${data['userEmail'] ?? ''} · ${data['marketName'] ?? ''}',
+                            style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey)),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Text('${data['price']?.toStringAsFixed(2) ?? ''} ${data['currency'] ?? 'TRY'}',
+                                style: GoogleFonts.poppins(fontSize: 12, color: const Color(0xFF2E7D32), fontWeight: FontWeight.w600)),
+                            const SizedBox(width: 12),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: isCancelled ? Colors.red.shade50 : Colors.orange.shade50,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(orderStatus.replaceFirst(orderStatus[0], orderStatus[0].toUpperCase()),
+                                  style: GoogleFonts.poppins(fontSize: 10, color: statusColor, fontWeight: FontWeight.w600)),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    trailing: Wrap(
+                      spacing: 8,
+                      children: [
+                        if (ts != null)
+                          Text('${ts.toDate().day}/${ts.toDate().month}',
+                              style: GoogleFonts.poppins(fontSize: 10, color: Colors.grey)),
+                        if (!isCancelled)
+                          IconButton(
+                            icon: const Icon(Icons.close_rounded, color: Colors.red),
+                            onPressed: () => _cancelOrder(
+                              context: context,
+                              purchaseId: docId,
+                              userId: data['userId'],
+                              productName: data['productName'],
+                              marketName: data['marketName'],
+                            ),
+                          ),
+                      ],
+                    ),
+                    isThreeLine: true,
                   );
                 },
               );

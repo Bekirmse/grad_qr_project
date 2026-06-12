@@ -3,7 +3,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/auth_service.dart';
-import 'verificationPage.dart';
 import 'forgot_password_page.dart';
 
 class LoginPage extends StatefulWidget {
@@ -85,14 +84,15 @@ class _LoginPageState extends State<LoginPage> {
               .get();
 
       if (userSnapshot.docs.isNotEmpty) {
-        var userData = userSnapshot.docs.first.data();
-        bool isVerified = userData['isVerified'] ?? false; // Onaylı mı?
-        String? phone = userData['phoneNumber'];
+        String userId = userSnapshot.docs.first.id;
 
-        // --- DURUM 1: Zaten Onaylı (Direkt Gir) ---
-        if (isVerified) {
+        if (_authService.isEmailVerified()) {
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(userId)
+              .update({'isVerified': true});
+          setState(() => _isLoading = false);
           if (mounted) {
-            // Direkt Ana Sayfaya
             Navigator.pushNamedAndRemoveUntil(
               context,
               '/home',
@@ -102,40 +102,27 @@ class _LoginPageState extends State<LoginPage> {
           return;
         }
 
-        // --- DURUM 2: Onaylı Değil (SMS Gönder) ---
-        if (phone == null) {
+        try {
+          await _authService.sendEmailVerification();
           setState(() => _isLoading = false);
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Phone number not found.')),
-            );
-          }
-          return;
-        }
-
-        await _authService.startPhoneAuth(
-          phoneNumber: phone,
-          onCodeSent: (verificationId, forceResendingToken) {
-            setState(() => _isLoading = false);
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder:
-                    (context) => VerificationPage(
-                      verificationId: verificationId,
-                      isPasswordReset: false,
-                      phoneNumber: phone,
-                    ),
+              const SnackBar(
+                content: Text('Verification email sent. Please verify and login again.'),
+                backgroundColor: Color(0xFF2E7D32),
               ),
             );
-          },
-          onVerificationFailed: (e) {
-            setState(() => _isLoading = false);
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(SnackBar(content: Text(e.message ?? 'SMS Error')));
-          },
-        );
+            await Future.delayed(const Duration(seconds: 2));
+            Navigator.pushReplacementNamed(context, '/login');
+          }
+        } catch (e) {
+          setState(() => _isLoading = false);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Error: ${e.toString()}')),
+            );
+          }
+        }
       } else {
         setState(() => _isLoading = false);
         if (mounted) {
@@ -155,15 +142,48 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   // Sosyal Medya Giriş Fonksiyonu
-  void _socialLogin(String provider) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$provider login coming soon!'),
-        backgroundColor: Colors.grey[700],
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
+  Future<void> _socialLogin(String provider) async {
+    setState(() => _isLoading = true);
+
+    String? error;
+
+    try {
+      if (provider == 'Google') {
+        error = await _authService.signInWithGoogle();
+      } else if (provider == 'Apple') {
+        error = await _authService.signInWithApple();
+      }
+
+      if (error == null && mounted) {
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          '/home',
+          (route) => false,
+        );
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(error ?? 'Login failed'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('$provider login error: $e'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override

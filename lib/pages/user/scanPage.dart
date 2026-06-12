@@ -82,7 +82,7 @@ class _ScanPageState extends State<ScanPage>
       if (!mounted) return;
       await Navigator.push(
         context,
-        _createRoute(ResultPage(barcode: scannedCode)),
+        _createRoute(ResultPage(barcode: scannedCode.trim())),
       );
     } finally {
       if (mounted) {

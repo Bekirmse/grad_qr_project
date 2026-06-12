@@ -29,7 +29,10 @@ class _SearchPageState extends State<SearchPage> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        automaticallyImplyLeading: false,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, size: 18, color: Color(0xFF1A1A2E)),
+          onPressed: () => Navigator.pop(context),
+        ),
         title: Text(
           'Browse Products',
           style: GoogleFonts.poppins(

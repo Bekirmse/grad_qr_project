@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:grad_qr_project/pages/user/resultPage.dart';
+import 'package:grad_qr_project/services/notification_service.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -116,33 +117,60 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
           GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const NotificationPage(),
-                ),
-              );
-            },
-            child: Container(
-              width: 46,
-              height: 46,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(14),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.06),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
+            onTap: () => Navigator.pushNamed(context, '/notifications'),
+            child: Stack(
+              children: [
+                Container(
+                  width: 46,
+                  height: 46,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.06),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              child: const Icon(
-                Icons.notifications_none_rounded,
-                color: Color(0xFF1A1A2E),
-                size: 24,
-              ),
+                  child: const Icon(
+                    Icons.notifications_none_rounded,
+                    color: Color(0xFF1A1A2E),
+                    size: 24,
+                  ),
+                ),
+                if (user != null)
+                  StreamBuilder<int>(
+                    stream: NotificationService.getUnreadCount(user!.uid),
+                    builder: (_, snap) {
+                      final unread = snap.data ?? 0;
+                      if (unread == 0) return const SizedBox.shrink();
+                      return Positioned(
+                        right: 0,
+                        top: 0,
+                        child: Container(
+                          width: 20,
+                          height: 20,
+                          decoration: const BoxDecoration(
+                            color: Colors.red,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Center(
+                            child: Text(
+                              unread > 9 ? '9+' : unread.toString(),
+                              style: GoogleFonts.poppins(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+              ],
             ),
           ),
         ],
@@ -271,21 +299,21 @@ class _HomePageState extends State<HomePage> {
         children: [
           Expanded(
             child: _QuickActionCard(
-              icon: Icons.qr_code_scanner_rounded,
-              label: 'Scan',
-              subtitle: 'Compare prices',
+              icon: Icons.shopping_bag_rounded,
+              label: 'My Orders',
+              subtitle: 'Purchase history',
               color: const Color(0xFF2E7D32),
-              onTap: () => Navigator.pushNamed(context, '/scan'),
+              onTap: () => Navigator.pushNamed(context, '/orders'),
             ),
           ),
           const SizedBox(width: 14),
           Expanded(
             child: _QuickActionCard(
-              icon: Icons.favorite_border_rounded,
-              label: 'Favorites',
-              subtitle: 'Saved products',
-              color: const Color(0xFFE53935),
-              onTap: () => Navigator.pushNamed(context, '/favorites'),
+              icon: Icons.shopping_cart_outlined,
+              label: 'My Cart',
+              subtitle: 'Your items',
+              color: const Color(0xFF2E7D32),
+              onTap: () => Navigator.pushNamed(context, '/cart'),
             ),
           ),
         ],
@@ -368,11 +396,18 @@ class _HomePageState extends State<HomePage> {
           }
 
           final docs = snapshot.data!.docs;
+          debugPrint('Category: $_selectedCategory, Products count: ${docs.length}');
+          for (var i = 0; i < docs.length; i++) {
+            debugPrint('  [$i] ${docs[i].id} - ${docs[i]['productName']}');
+          }
           return SliverList(
             delegate: SliverChildBuilderDelegate((context, index) {
               final data = docs[index].data() as Map<String, dynamic>;
               final barcode = docs[index].id;
-              return ProductCard(data: data, barcode: barcode);
+              return GestureDetector(
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ResultPage(barcode: barcode))),
+                child: ProductCard(data: data, barcode: barcode),
+              );
             }, childCount: docs.length),
           );
         },
@@ -672,169 +707,6 @@ class ProductCard extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class NotificationPage extends StatelessWidget {
-  const NotificationPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
-      appBar: AppBar(
-        title: Text(
-          'Notifications',
-          style: GoogleFonts.poppins(
-            color: const Color(0xFF1A1A2E),
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back_ios_new,
-            color: Color(0xFF1A1A2E),
-          ),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream:
-            FirebaseFirestore.instance
-                .collection('notifications')
-                .orderBy('createdAt', descending: true)
-                .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(color: Color(0xFF2E7D32)),
-            );
-          }
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(28),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE8F5E9),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.notifications_off_outlined,
-                      size: 56,
-                      color: Color(0xFF2E7D32),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    'No notifications yet',
-                    style: GoogleFonts.poppins(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          final docs = snapshot.data!.docs;
-          return ListView.builder(
-            padding: const EdgeInsets.all(20),
-            itemCount: docs.length,
-            itemBuilder: (context, index) {
-              final n = docs[index].data() as Map<String, dynamic>;
-              Timestamp? ts = n['createdAt'];
-              String time = '';
-              if (ts != null) {
-                final d = ts.toDate();
-                time =
-                    "${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}  ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}";
-              }
-              return Container(
-                margin: const EdgeInsets.only(bottom: 14),
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(18),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.04),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFE8F5E9),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.notifications_active_rounded,
-                        color: Color(0xFF2E7D32),
-                        size: 22,
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            n['title'] ?? 'Notification',
-                            style: GoogleFonts.poppins(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 15,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            n['body'] ?? '',
-                            style: GoogleFonts.poppins(
-                              fontSize: 13,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                          if (time.isNotEmpty) ...[
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                const Icon(
-                                  Icons.access_time,
-                                  size: 12,
-                                  color: Colors.grey,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  time,
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 11,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          );
-        },
       ),
     );
   }

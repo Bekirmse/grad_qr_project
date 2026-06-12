@@ -16,6 +16,7 @@ class PurchasePage extends StatefulWidget {
   final String marketName;
   final String city;
   final String imageUrl;
+  final bool isCart;
 
   const PurchasePage({
     super.key,
@@ -26,6 +27,7 @@ class PurchasePage extends StatefulWidget {
     required this.marketName,
     required this.city,
     required this.imageUrl,
+    this.isCart = false,
   });
 
   @override
@@ -167,7 +169,8 @@ class _PurchasePageState extends State<PurchasePage>
       'city': widget.city,
       'imageUrl': widget.imageUrl,
       'cardLastFour': lastFour,
-      'status': 'completed',
+      'purchaseStatus': 'complete',
+      'orderStatus': 'pending',
       'timestamp': FieldValue.serverTimestamp(),
     });
     if (mounted) setState(() => _showSuccess = true);

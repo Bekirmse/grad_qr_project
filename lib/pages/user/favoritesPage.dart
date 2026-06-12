@@ -29,7 +29,10 @@ class FavoritesPage extends StatelessWidget {
           ),
         ),
         centerTitle: true,
-        automaticallyImplyLeading: false,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, size: 18, color: Color(0xFF1A1A2E)),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
       body:
           user == null
@@ -72,7 +75,13 @@ class FavoritesPage extends StatelessWidget {
                     itemBuilder: (context, index) {
                       final data =
                           favDocs[index].data() as Map<String, dynamic>;
-                      final barcode = favDocs[index].id;
+                      final barcode = favDocs[index].id.trim();
+
+                      debugPrint('===== FavoritesPage Item =====');
+                      debugPrint('>>> BARCODE TO OPEN: $barcode <<<');
+                      debugPrint('Document ID (Barcode): "$barcode" (length: ${barcode.length})');
+                      debugPrint('ProductName: ${data['productName']}');
+                      debugPrint('Full Data: $data');
 
                       return _FavoriteCard(
                         barcode: barcode,
@@ -182,7 +191,11 @@ class _FavoriteCard extends StatelessWidget {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => ResultPage(barcode: barcode),
+              builder: (context) => ResultPage(
+                barcode: barcode,
+                productData: data,
+                preferredCity: (data['city'] as String?) ?? 'All',
+              ),
             ),
           );
         },

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:grad_qr_project/pages/user/reset_password_page.dart';
+import 'package:grad_qr_project/services/firestore_seed.dart';
 import 'firebase_options.dart';
 
 import 'package:grad_qr_project/pages/admin/adminDashboard.dart';
@@ -15,10 +16,14 @@ import 'package:grad_qr_project/pages/user/scanPage.dart';
 import 'package:grad_qr_project/pages/user/searchPage.dart';
 import 'package:grad_qr_project/pages/user/editProfilePage.dart';
 import 'package:grad_qr_project/pages/user/favoritesPage.dart';
+import 'package:grad_qr_project/pages/user/cartPage.dart';
+import 'package:grad_qr_project/pages/user/ordersPage.dart';
+import 'package:grad_qr_project/pages/user/notificationsPage.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await FirestoreSeed.run();
 
   runApp(const MyApp());
 }
@@ -104,6 +109,9 @@ class MyApp extends StatelessWidget {
         '/admin': (context) => const AdminDashboard(),
         '/edit-profile': (context) => const EditProfilePage(),
         '/change-password': (context) => const ResetPasswordPage(),
+        '/cart': (context) => const CartPage(),
+        '/orders': (context) => const OrdersPage(),
+        '/notifications': (context) => const NotificationsPage(),
       },
     );
   }
