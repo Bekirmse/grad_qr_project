@@ -168,19 +168,30 @@ class _FavoriteCard extends StatelessWidget {
   }
 
   Future<(String, bool)> _getProductInfo() async {
-    final imageUrl = data['imageUrl']?.toString() ?? '';
-    final finalImageUrl = imageUrl.isNotEmpty ? imageUrl : '';
-    bool hasDiscount = false;
+    final localImageUrl = data['imageUrl']?.toString() ?? '';
+
+    if (localImageUrl.isNotEmpty) {
+      try {
+        final results = await MarketApiService.searchProductInCity(barcode, 'All');
+        final hasDiscount = results.isNotEmpty && results.any((r) => r.discountPrice != null && r.discountPrice! < r.price);
+        return (localImageUrl, hasDiscount);
+      } catch (e) {
+        return (localImageUrl, false);
+      }
+    }
 
     try {
       final results = await MarketApiService.searchProductInCity(barcode, 'All');
       if (results.isNotEmpty) {
         final photoUrl = results.first.photoUrl;
-        hasDiscount = results.any((r) => r.discountPrice != null && r.discountPrice! < r.price);
-        return (photoUrl, hasDiscount);
+        final hasDiscount = results.any((r) => r.discountPrice != null && r.discountPrice! < r.price);
+        return (photoUrl.isNotEmpty ? photoUrl : localImageUrl, hasDiscount);
       }
-    } catch (_) {}
-    return (finalImageUrl, false);
+    } catch (e) {
+      debugPrint('Error fetching product info for $barcode: $e');
+    }
+
+    return (localImageUrl, false);
   }
 
   @override
@@ -225,6 +236,7 @@ class _FavoriteCard extends StatelessWidget {
                 builder: (context, snapshot) {
                   final photoUrl = snapshot.data?.$1 ?? '';
                   final hasDiscount = snapshot.data?.$2 ?? false;
+                  final isLoading = snapshot.connectionState == ConnectionState.waiting;
 
                   return Stack(
                     children: [
@@ -235,23 +247,34 @@ class _FavoriteCard extends StatelessWidget {
                           color: const Color(0xFFF5F7FA),
                           borderRadius: BorderRadius.circular(14),
                         ),
-                        child: photoUrl.isNotEmpty
-                            ? ClipRRect(
-                              borderRadius: BorderRadius.circular(14),
-                              child: Image.network(
-                                photoUrl,
-                                fit: BoxFit.contain,
-                                errorBuilder: (_, __, ___) => const Icon(
-                                  Icons.image_not_supported_outlined,
-                                  color: Colors.grey,
+                        child: isLoading
+                            ? const Center(
+                              child: SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation(Color(0xFF2E7D32)),
                                 ),
                               ),
                             )
-                            : const Icon(
-                              Icons.shopping_bag_outlined,
-                              color: Colors.grey,
-                              size: 30,
-                            ),
+                            : (photoUrl.isNotEmpty
+                                ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(14),
+                                  child: Image.network(
+                                    photoUrl,
+                                    fit: BoxFit.contain,
+                                    errorBuilder: (_, __, ___) => const Icon(
+                                      Icons.image_not_supported_outlined,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                )
+                                : const Icon(
+                                  Icons.shopping_bag_outlined,
+                                  color: Colors.grey,
+                                  size: 30,
+                                )),
                       ),
                       if (hasDiscount)
                         Positioned(
@@ -264,9 +287,9 @@ class _FavoriteCard extends StatelessWidget {
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
-                              'SALE',
+                              'DISCOUNT',
                               style: GoogleFonts.poppins(
-                                fontSize: 8,
+                                fontSize: 7,
                                 fontWeight: FontWeight.w700,
                                 color: Colors.white,
                               ),
