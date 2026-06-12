@@ -134,7 +134,7 @@ class FavoritesPage extends StatelessWidget {
   }
 }
 
-class _FavoriteCard extends StatelessWidget {
+class _FavoriteCard extends StatefulWidget {
   final String barcode;
   final Map<String, dynamic> data;
   final String userId;
@@ -145,12 +145,25 @@ class _FavoriteCard extends StatelessWidget {
     required this.userId,
   });
 
+  @override
+  State<_FavoriteCard> createState() => _FavoriteCardState();
+}
+
+class _FavoriteCardState extends State<_FavoriteCard> {
+  late Future<(String, bool)> _productInfoFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _productInfoFuture = _getProductInfo();
+  }
+
   Future<void> _removeFavorite(BuildContext context) async {
     await FirebaseFirestore.instance
         .collection('users')
-        .doc(userId)
+        .doc(widget.userId)
         .collection('favorites')
-        .doc(barcode)
+        .doc(widget.barcode)
         .delete();
 
     if (context.mounted) {
@@ -168,43 +181,43 @@ class _FavoriteCard extends StatelessWidget {
   }
 
   Future<(String, bool)> _getProductInfo() async {
-    final localImageUrl = data['imageUrl']?.toString() ?? '';
-    debugPrint('🖼️ FavoriteCard[$barcode] localImageUrl: "$localImageUrl"');
+    final localImageUrl = widget.data['imageUrl']?.toString() ?? '';
+    debugPrint('🖼️ FavoriteCard[${widget.barcode}] localImageUrl: "$localImageUrl"');
 
     if (localImageUrl.isNotEmpty) {
       try {
-        final results = await MarketApiService.searchProductInCity(barcode, 'All');
+        final results = await MarketApiService.searchProductInCity(widget.barcode, 'All');
         final hasDiscount = results.isNotEmpty && results.any((r) => r.discountPrice != null && r.discountPrice! < r.price);
-        debugPrint('🖼️ FavoriteCard[$barcode] found discount: $hasDiscount');
+        debugPrint('🖼️ FavoriteCard[${widget.barcode}] found discount: $hasDiscount');
         return (localImageUrl, hasDiscount);
       } catch (e) {
-        debugPrint('🖼️ FavoriteCard[$barcode] error checking discount: $e');
+        debugPrint('🖼️ FavoriteCard[${widget.barcode}] error checking discount: $e');
         return (localImageUrl, false);
       }
     }
 
-    debugPrint('🖼️ FavoriteCard[$barcode] local URL empty, fetching from API');
+    debugPrint('🖼️ FavoriteCard[${widget.barcode}] local URL empty, fetching from API');
     try {
-      final results = await MarketApiService.searchProductInCity(barcode, 'All');
+      final results = await MarketApiService.searchProductInCity(widget.barcode, 'All');
       if (results.isNotEmpty) {
         final photoUrl = results.first.photoUrl;
         final hasDiscount = results.any((r) => r.discountPrice != null && r.discountPrice! < r.price);
-        debugPrint('🖼️ FavoriteCard[$barcode] API photoUrl: "$photoUrl", hasDiscount: $hasDiscount');
+        debugPrint('🖼️ FavoriteCard[${widget.barcode}] API photoUrl: "$photoUrl", hasDiscount: $hasDiscount');
         return (photoUrl.isNotEmpty ? photoUrl : localImageUrl, hasDiscount);
       }
     } catch (e) {
-      debugPrint('🖼️ FavoriteCard[$barcode] Error fetching from API: $e');
+      debugPrint('🖼️ FavoriteCard[${widget.barcode}] Error fetching from API: $e');
     }
 
-    debugPrint('🖼️ FavoriteCard[$barcode] returning empty URL');
+    debugPrint('🖼️ FavoriteCard[${widget.barcode}] returning empty URL');
     return (localImageUrl, false);
   }
 
   @override
   Widget build(BuildContext context) {
-    final productName = data['productName']?.toString() ?? 'Unknown Product';
-    final category = data['category']?.toString() ?? '';
-    final brand = data['brand']?.toString() ?? '';
+    final productName = widget.data['productName']?.toString() ?? 'Unknown Product';
+    final category = widget.data['category']?.toString() ?? '';
+    final brand = widget.data['brand']?.toString() ?? '';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -238,7 +251,7 @@ class _FavoriteCard extends StatelessWidget {
           child: Row(
             children: [
               FutureBuilder<(String, bool)>(
-                future: _getProductInfo(),
+                future: _productInfoFuture,
                 builder: (context, snapshot) {
                   final photoUrl = snapshot.data?.$1 ?? '';
                   final hasDiscount = snapshot.data?.$2 ?? false;
