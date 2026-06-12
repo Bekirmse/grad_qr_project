@@ -207,7 +207,7 @@ class _PurchasePageState extends State<PurchasePage>
                                 ),
                               ),
                               child: isSelected
-                                  ? const Center(
+                                  ? Center(
                                       child: Container(
                                         width: 8,
                                         height: 8,
