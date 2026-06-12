@@ -585,25 +585,25 @@ class _PurchasePageState extends State<PurchasePage>
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             SizedBox(
-              width: 150,
-              height: 150,
+              width: 200,
+              height: 200,
               child: Lottie.asset(
-                'assets/animations/card_processing.json',
+                'assets/animations/check.json',
                 fit: BoxFit.contain,
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 32),
             Text(
               'Processing Payment',
               style: GoogleFonts.poppins(
-                fontSize: 22,
+                fontSize: 24,
                 fontWeight: FontWeight.bold,
                 color: const Color(0xFF1A1A2E),
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             Text(
-              'Please wait while we verify your card...',
+              'Verifying your card information...',
               textAlign: TextAlign.center,
               style: GoogleFonts.poppins(
                 fontSize: 14,
