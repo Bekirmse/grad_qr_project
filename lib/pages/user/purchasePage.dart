@@ -52,12 +52,9 @@ class _PurchasePageState extends State<PurchasePage>
 
   bool _isFlipped = false;
   bool _isLoading = true;
-  bool _hasSavedCard = false;
   bool _isBuying = false;
   bool _isProcessing = false;
   bool _showSuccess = false;
-
-  Map<String, dynamic>? _savedCard;
 
   String _cardNumber = '';
   String _cardHolder = '';
@@ -115,10 +112,9 @@ class _PurchasePageState extends State<PurchasePage>
           .collection('paymentMethods')
           .limit(1).get();
       if (snap.docs.isNotEmpty) {
-        setState(() {
-          _savedCard = snap.docs.first.data();
-          _hasSavedCard = true;
-        });
+        final card = snap.docs.first.data();
+        _nameCtrl.text = card['cardHolder'] ?? '';
+        _expiryCtrl.text = card['expiry'] ?? '';
       }
     } catch (_) {}
     setState(() => _isLoading = false);
@@ -383,16 +379,7 @@ class _PurchasePageState extends State<PurchasePage>
     }
   }
 
-  Future<void> _buyWithSavedCard() async {
-    setState(() => _isBuying = true);
-    try {
-      await _completePurchase(_savedCard!['lastFour']);
-    } finally {
-      if (mounted) setState(() => _isBuying = false);
-    }
-  }
-
-  Future<void> _completePurchase(String lastFour) async {
+Future<void> _completePurchase(String lastFour) async {
     if (mounted) setState(() => _isProcessing = true);
 
     await FirebaseFirestore.instance.collection('purchases').add({
@@ -452,125 +439,116 @@ class _PurchasePageState extends State<PurchasePage>
                     imageUrl: widget.imageUrl,
                   ),
                   const SizedBox(height: 24),
-                  if (_hasSavedCard)
-                    _SavedCardSection(
-                      card: _savedCard!,
-                      isBuying: _isBuying,
-                      onBuy: _buyWithSavedCard,
-                      onUseNew: () => setState(() => _hasSavedCard = false),
-                    )
-                  else ...[
-                    _AnimatedCard(
-                      flipAnim: _flipAnim,
-                      cardNumber: _cardNumber,
-                      cardHolder: _cardHolder,
-                      expiry: _expiry,
-                      cvv: _cvv,
-                    ),
-                    const SizedBox(height: 24),
-                    _CardForm(
-                      formKey: _formKey,
-                      numberCtrl: _numberCtrl,
-                      nameCtrl: _nameCtrl,
-                      expiryCtrl: _expiryCtrl,
-                      cvvCtrl: _cvvCtrl,
-                      cvvFocus: _cvvFocus,
-                    ),
-                    const SizedBox(height: 24),
-                    GestureDetector(
-                      onTap: _showAddressSelection,
-                      child: Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: _selectedAddress == null ? Colors.grey.shade200 : _green,
-                            width: 1.5,
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.location_on_outlined, color: _selectedAddress == null ? Colors.grey : _green, size: 22),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text('Delivery Address',
-                                      style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600], fontWeight: FontWeight.w500)),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    _selectedAddress ?? 'Tap to select address',
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      color: _selectedAddress == null ? Colors.grey : const Color(0xFF1A1A2E),
-                                    ),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Icon(Icons.chevron_right, color: Colors.grey[400], size: 20),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    Container(
-                      padding: const EdgeInsets.all(12),
+                  _AnimatedCard(
+                    flipAnim: _flipAnim,
+                    cardNumber: _cardNumber,
+                    cardHolder: _cardHolder,
+                    expiry: _expiry,
+                    cvv: _cvv,
+                  ),
+                  const SizedBox(height: 24),
+                  _CardForm(
+                    formKey: _formKey,
+                    numberCtrl: _numberCtrl,
+                    nameCtrl: _nameCtrl,
+                    expiryCtrl: _expiryCtrl,
+                    cvvCtrl: _cvvCtrl,
+                    cvvFocus: _cvvFocus,
+                  ),
+                  const SizedBox(height: 24),
+                  GestureDetector(
+                    onTap: _showAddressSelection,
+                    child: Container(
+                      padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF5F7FA),
-                        borderRadius: BorderRadius.circular(12),
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: _selectedAddress == null ? Colors.grey.shade200 : _green,
+                          width: 1.5,
+                        ),
                       ),
                       child: Row(
                         children: [
-                          Checkbox(
-                            value: _saveCard,
-                            onChanged: (val) => setState(() => _saveCard = val ?? false),
-                            activeColor: _green,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                          ),
+                          Icon(Icons.location_on_outlined, color: _selectedAddress == null ? Colors.grey : _green, size: 22),
+                          const SizedBox(width: 12),
                           Expanded(
-                            child: Text(
-                              'Save card for future purchases',
-                              style: GoogleFonts.poppins(fontSize: 13, color: const Color(0xFF1A1A2E), fontWeight: FontWeight.w500),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Delivery Address',
+                                    style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600], fontWeight: FontWeight.w500)),
+                                const SizedBox(height: 4),
+                                Text(
+                                  _selectedAddress ?? 'Tap to select address',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: _selectedAddress == null ? Colors.grey : const Color(0xFF1A1A2E),
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
                             ),
                           ),
+                          Icon(Icons.chevron_right, color: Colors.grey[400], size: 20),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 24),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: _isBuying ? null : _saveCardAndBuy,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _green,
-                          foregroundColor: Colors.white,
-                          minimumSize: const Size(double.infinity, 56),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                          elevation: 0,
-                        ),
-                        child: _isBuying
-                            ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
-                            : Text('Buy · ${widget.price.toStringAsFixed(2)} ${widget.currency}',
-                                style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w600)),
-                      ),
+                  ),
+                  const SizedBox(height: 20),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF5F7FA),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    child: Row(
                       children: [
-                        Icon(Icons.lock_rounded, size: 13, color: Colors.grey[400]),
-                        const SizedBox(width: 4),
-                        Text('Card data is encrypted & securely stored',
-                            style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey[400])),
+                        Checkbox(
+                          value: _saveCard,
+                          onChanged: (val) => setState(() => _saveCard = val ?? false),
+                          activeColor: _green,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                        ),
+                        Expanded(
+                          child: Text(
+                            'Save card for future purchases',
+                            style: GoogleFonts.poppins(fontSize: 13, color: const Color(0xFF1A1A2E), fontWeight: FontWeight.w500),
+                          ),
+                        ),
                       ],
                     ),
-                  ],
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _isBuying ? null : _saveCardAndBuy,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _green,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(double.infinity, 56),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        elevation: 0,
+                      ),
+                      child: _isBuying
+                          ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
+                          : Text('Buy · ${widget.price.toStringAsFixed(2)} ${widget.currency}',
+                              style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w600)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.lock_rounded, size: 13, color: Colors.grey[400]),
+                      const SizedBox(width: 4),
+                      Text('Card data is encrypted & securely stored',
+                          style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey[400])),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -931,76 +909,6 @@ class _CardForm extends StatelessWidget {
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         labelStyle: GoogleFonts.poppins(fontSize: 13),
       ),
-    );
-  }
-}
-
-class _SavedCardSection extends StatelessWidget {
-  final Map<String, dynamic> card;
-  final bool isBuying;
-  final VoidCallback onBuy;
-  final VoidCallback onUseNew;
-
-  const _SavedCardSection({required this.card, required this.isBuying, required this.onBuy, required this.onUseNew});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0xFF2E7D32).withValues(alpha: 0.3)),
-            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 12, offset: const Offset(0, 4))],
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: const Color(0xFFE8F5E9), borderRadius: BorderRadius.circular(12)),
-                child: const Icon(Icons.credit_card_rounded, color: Color(0xFF2E7D32), size: 26),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('${card['brand'] ?? 'Card'} •••• ${card['lastFour'] ?? ''}',
-                        style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 15)),
-                    Text('${card['cardHolder'] ?? ''} · Expires ${card['expiry'] ?? ''}',
-                        style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey)),
-                  ],
-                ),
-              ),
-              const Icon(Icons.check_circle_rounded, color: Color(0xFF2E7D32)),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed: isBuying ? null : onBuy,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF2E7D32),
-              foregroundColor: Colors.white,
-              minimumSize: const Size(double.infinity, 56),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              elevation: 0,
-            ),
-            child: isBuying
-                ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
-                : Text('Buy Now', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600)),
-          ),
-        ),
-        const SizedBox(height: 10),
-        TextButton(
-          onPressed: onUseNew,
-          child: Text('Use a different card', style: GoogleFonts.poppins(color: Colors.grey[600], fontSize: 13)),
-        ),
-      ],
     );
   }
 }
