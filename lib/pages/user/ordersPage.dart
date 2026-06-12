@@ -122,6 +122,8 @@ class OrdersPage extends StatelessWidget {
                               ),
                             ],
                           ),
+                          const SizedBox(height: 16),
+                          _buildOrderTimeline(p['orderStatus'] as String? ?? 'pending'),
                           const SizedBox(height: 12),
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -178,6 +180,92 @@ class OrdersPage extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(color: color.bg, borderRadius: BorderRadius.circular(6)),
       child: Text(label, style: GoogleFonts.poppins(fontSize: 10, color: color.text, fontWeight: FontWeight.w600)),
+    );
+  }
+
+  Widget _buildOrderTimeline(String status) {
+    const green = Color(0xFF2E7D32);
+    const grey = Color(0xFFE0E0E0);
+    const red = Colors.red;
+
+    final steps = ['Sipariş verildi', 'Sipariş alındı', 'Teslimat', 'Teslim edildi'];
+
+    int completedStep = 0;
+    if (status == 'completed') {
+      completedStep = 3;
+    } else if (status == 'pending') {
+      completedStep = 0;
+    } else if (status == 'cancelled') {
+      completedStep = -1;
+    }
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Row(
+            children: List.generate(steps.length, (i) {
+              final isCancelled = status == 'cancelled';
+              final dotColor = isCancelled
+                  ? (i == 0 ? green : red)
+                  : (i <= completedStep ? green : grey);
+
+              return Expanded(
+                child: Column(
+                  children: [
+                    SizedBox(
+                      height: 40,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          if (i < steps.length - 1)
+                            Positioned(
+                              left: 20,
+                              right: -20,
+                              child: Container(
+                                height: 2,
+                                color: (i < completedStep || (status == 'completed' && i < 3))
+                                    ? green
+                                    : grey,
+                              ),
+                            ),
+                          Container(
+                            width: 16,
+                            height: 16,
+                            decoration: BoxDecoration(
+                              color: dotColor,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 3),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: dotColor.withValues(alpha: 0.3),
+                                  blurRadius: 4,
+                                )
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      steps[i],
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.poppins(
+                        fontSize: 9,
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ),
+        ),
+      ],
     );
   }
 }
