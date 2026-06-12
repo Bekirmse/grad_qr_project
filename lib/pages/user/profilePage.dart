@@ -211,6 +211,17 @@ class _ProfilePageState extends State<ProfilePage> {
                     onTap: _deleteAccount,
                   ),
                   const SizedBox(height: 8),
+                  _SectionLabel(label: 'Delivery'),
+                  _MenuTile(
+                    icon: Icons.location_on_outlined,
+                    title: 'My Addresses',
+                    subtitle: 'Manage delivery addresses',
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const _AddressesPage()),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
                   _SectionLabel(label: 'Legal & About'),
                   _MenuTile(
                     icon: Icons.privacy_tip_outlined,
@@ -407,6 +418,180 @@ class _MenuTile extends StatelessWidget {
         ),
         subtitle: Text(subtitle, style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[500])),
         trailing: showArrow ? const Icon(Icons.chevron_right, color: Colors.grey) : null,
+      ),
+    );
+  }
+}
+
+class _AddressesPage extends StatefulWidget {
+  const _AddressesPage();
+
+  @override
+  State<_AddressesPage> createState() => _AddressesPageState();
+}
+
+class _AddressesPageState extends State<_AddressesPage> {
+  final User? _user = FirebaseAuth.instance.currentUser;
+  List<Map<String, dynamic>> _addresses = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchAddresses();
+  }
+
+  Future<void> _fetchAddresses() async {
+    if (_user == null) {
+      setState(() => _isLoading = false);
+      return;
+    }
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(_user.uid)
+          .get();
+      if (doc.exists) {
+        final addresses = doc.get('addresses') as List? ?? [];
+        setState(() {
+          _addresses = List<Map<String, dynamic>>.from(addresses);
+          _isLoading = false;
+        });
+      } else {
+        setState(() => _isLoading = false);
+      }
+    } catch (_) {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _saveAddress(String label, String address) async {
+    if (_user == null) return;
+    _addresses.add({
+      'label': label,
+      'address': address,
+      'id': DateTime.now().millisecondsSinceEpoch.toString(),
+    });
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(_user.uid)
+        .update({'addresses': _addresses});
+    setState(() {});
+  }
+
+  Future<void> _deleteAddress(int index) async {
+    if (_user == null) return;
+    _addresses.removeAt(index);
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(_user.uid)
+        .update({'addresses': _addresses});
+    setState(() {});
+  }
+
+  void _showAddAddressDialog() {
+    final labelCtrl = TextEditingController();
+    final addressCtrl = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text('Add Address', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: labelCtrl,
+              decoration: InputDecoration(
+                hintText: 'Home, Work, etc.',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: addressCtrl,
+              maxLines: 3,
+              decoration: InputDecoration(
+                hintText: 'Enter your address',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Cancel', style: GoogleFonts.poppins()),
+          ),
+          TextButton(
+            onPressed: () {
+              if (labelCtrl.text.isEmpty || addressCtrl.text.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Please fill all fields', style: GoogleFonts.poppins())),
+                );
+                return;
+              }
+              _saveAddress(labelCtrl.text, addressCtrl.text);
+              Navigator.pop(ctx);
+            },
+            child: Text('Add', style: GoogleFonts.poppins(color: const Color(0xFF2E7D32), fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        title: Text('My Addresses', style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 18, color: const Color(0xFF1A1A2E))),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFF1A1A2E), size: 18),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator(color: Color(0xFF2E7D32)))
+          : ListView.builder(
+              padding: const EdgeInsets.all(20),
+              itemCount: _addresses.length,
+              itemBuilder: (_, i) {
+                final addr = _addresses[i];
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8)],
+                  ),
+                  child: ListTile(
+                    leading: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFE8F5E9),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.location_on, color: Color(0xFF2E7D32), size: 20),
+                    ),
+                    title: Text(addr['label'], style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 15)),
+                    subtitle: Text(addr['address'], style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey), maxLines: 2),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                      onPressed: () => _deleteAddress(i),
+                    ),
+                  ),
+                );
+              },
+            ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _showAddAddressDialog,
+        backgroundColor: const Color(0xFF2E7D32),
+        child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }
