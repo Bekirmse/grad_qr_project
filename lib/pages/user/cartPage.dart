@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:lottie/lottie.dart';
 import 'package:grad_qr_project/services/cart_service.dart';
 import 'purchasePage.dart';
 
@@ -73,15 +74,29 @@ class _CartPageState extends State<CartPage> {
     }
     if (!mounted) return;
     cartService.clear();
-    Navigator.pushReplacementNamed(context, '/home');
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${cartService.items.length} items purchased!',
-            style: GoogleFonts.poppins()),
-        backgroundColor: const Color(0xFF2E7D32),
-        duration: const Duration(seconds: 2),
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        child: Center(
+          child: Lottie.asset(
+            'assets/animations/pizza_delivery.json',
+            width: 300,
+            height: 300,
+            repeat: false,
+          ),
+        ),
       ),
     );
+
+    await Future.delayed(const Duration(seconds: 4));
+    if (mounted) {
+      Navigator.pop(context);
+      Navigator.pushReplacementNamed(context, '/home');
+    }
   }
 
   @override
