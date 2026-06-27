@@ -1,4 +1,3 @@
-// ignore_for_file: file_names
 import 'dart:async'; // Timer için gerekli
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -29,7 +28,6 @@ class _VerificationPageState extends State<VerificationPage> {
   final AuthService _authService = AuthService();
   bool _isLoading = false;
 
-  // Geri sayım değişkenleri
   late String _currentVerificationId;
   Timer? _timer;
   int _start = 60;
@@ -200,7 +198,6 @@ class _VerificationPageState extends State<VerificationPage> {
               ),
               const SizedBox(height: 30),
 
-              // TEKRAR GONDER SİSTEMİ
               _canResend
                   ? TextButton(
                     onPressed: _isLoading ? null : _resendCode,

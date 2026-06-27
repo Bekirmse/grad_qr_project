@@ -1,4 +1,3 @@
-// ignore_for_file: file_names
 
 import 'package:flutter/material.dart';
 import 'resultPage.dart'; // ResultPage'e yönlendirme yapacağımız için import ettik
@@ -6,7 +5,6 @@ import 'resultPage.dart'; // ResultPage'e yönlendirme yapacağımız için impo
 class NotFoundPage extends StatelessWidget {
   const NotFoundPage({super.key});
 
-  // Barkod giriş penceresini açan fonksiyon
   void _showManualBarcodeDialog(BuildContext context) {
     final TextEditingController barcodeController = TextEditingController();
 
@@ -56,7 +54,6 @@ class NotFoundPage extends StatelessWidget {
           ),
           actionsAlignment: MainAxisAlignment.spaceEvenly,
           actions: [
-            // İPTAL BUTONU
             TextButton(
               onPressed: () => Navigator.pop(ctx),
               child: const Text(
@@ -67,7 +64,6 @@ class NotFoundPage extends StatelessWidget {
                 ),
               ),
             ),
-            // ARA BUTONU
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF2E7D32),
@@ -80,7 +76,6 @@ class NotFoundPage extends StatelessWidget {
                 if (inputBarcode.isNotEmpty) {
                   Navigator.pop(ctx); // Dialog'u kapat
 
-                  // ResultPage'e git ve girilen barkodu ara
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -123,7 +118,6 @@ class NotFoundPage extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // --- İKON ALANI ---
               Container(
                 padding: const EdgeInsets.all(35),
                 decoration: const BoxDecoration(
@@ -139,7 +133,6 @@ class NotFoundPage extends StatelessWidget {
 
               const SizedBox(height: 32),
 
-              // --- BAŞLIK ---
               const Text(
                 'Product Not Found',
                 textAlign: TextAlign.center,
@@ -152,7 +145,6 @@ class NotFoundPage extends StatelessWidget {
 
               const SizedBox(height: 12),
 
-              // --- AÇIKLAMA ---
               Text(
                 "We couldn't find this barcode in our database.\nWould you like to scan another product?",
                 textAlign: TextAlign.center,
@@ -165,7 +157,6 @@ class NotFoundPage extends StatelessWidget {
 
               const Spacer(),
 
-              // --- SCAN AGAIN BUTONU ---
               SizedBox(
                 width: double.infinity,
                 height: 56,
@@ -190,13 +181,11 @@ class NotFoundPage extends StatelessWidget {
 
               const SizedBox(height: 16),
 
-              // --- ENTER MANUALLY BUTONU (GÜNCELLENDİ) ---
               SizedBox(
                 width: double.infinity,
                 height: 56,
                 child: OutlinedButton(
                   onPressed: () {
-                    // Dialog penceresini aç
                     _showManualBarcodeDialog(context);
                   },
                   style: OutlinedButton.styleFrom(

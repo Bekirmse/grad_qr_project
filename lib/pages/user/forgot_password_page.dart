@@ -1,4 +1,3 @@
-// ignore_for_file: file_names
 
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
@@ -58,7 +57,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Ekran yüksekliğini alıp simetrik yerleşim için kullanıyoruz
     final screenHeight = MediaQuery.of(context).size.height;
 
     return Scaffold(
@@ -80,7 +78,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         child: SingleChildScrollView(
           physics: const ClampingScrollPhysics(),
           child: SizedBox(
-            // Ekran yüksekliği - AppBar - Paddingler = İçerik Alanı
             height:
                 screenHeight -
                 40 -
@@ -89,12 +86,10 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24.0),
               child: Column(
-                // İçeriği dikey eksende eşit ve ortalı dağıt
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const Spacer(flex: 1), // Üst boşluk
-                  // --- İKON (Yuvarlak Arka Planlı) ---
                   Align(
                     alignment: Alignment.center,
                     child: Container(
@@ -114,7 +109,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
                   const SizedBox(height: 24),
 
-                  // --- BAŞLIK VE AÇIKLAMA ---
                   Column(
                     children: [
                       const Text(
@@ -141,7 +135,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
                   const SizedBox(height: 32),
 
-                  // --- INPUT ---
                   _buildCompactInput(
                     _emailController,
                     'Email Address',
@@ -150,7 +143,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
                   const SizedBox(height: 24),
 
-                  // --- BUTON ---
                   ElevatedButton(
                     onPressed: _isLoading ? null : _sendCode,
                     style: ElevatedButton.styleFrom(
@@ -191,7 +183,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     );
   }
 
-  // Diğer sayfalardakiyle aynı kompakt input yapısı
   Widget _buildCompactInput(
     TextEditingController controller,
     String label,

@@ -4,7 +4,6 @@ class Price {
   final double price; // Doküman: price (Number)
   final String currency; // Doküman: currency
 
-  // Arayüzde göstermek için sonradan dolduracağımız alanlar (Veritabanında yok)
   String? marketName;
   String? marketLogoUrl;
 

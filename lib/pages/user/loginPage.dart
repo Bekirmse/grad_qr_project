@@ -1,4 +1,3 @@
-// ignore_for_file: file_names, use_build_context_synchronously
 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -32,7 +31,6 @@ class _LoginPageState extends State<LoginPage> {
 
     setState(() => _isLoading = true);
 
-    // 1. ADMIN KONTROLÜ
     try {
       final adminSnapshot =
           await FirebaseFirestore.instance
@@ -59,9 +57,7 @@ class _LoginPageState extends State<LoginPage> {
       debugPrint("Admin kontrol hatası: $e");
     }
 
-    // 2. NORMAL KULLANICI GİRİŞİ
 
-    // A) Firebase Auth ile Şifre Kontrolü
     String? error = await _authService.checkCredentials(email, password);
 
     if (error != null) {
@@ -74,7 +70,6 @@ class _LoginPageState extends State<LoginPage> {
       return;
     }
 
-    // B) Firestore'dan isVerified Kontrolü
     try {
       final userSnapshot =
           await FirebaseFirestore.instance
@@ -141,7 +136,6 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  // Sosyal Medya Giriş Fonksiyonu
   Future<void> _socialLogin(String provider) async {
     setState(() => _isLoading = true);
 
@@ -188,7 +182,6 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    // UI Kodları tamamen aynı (Kalın inputlar, sosyal medya butonları, simetri)
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -390,7 +383,6 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  // --- WIDGETLAR (Kalın Tasarım) ---
   Widget _buildInput(
     TextEditingController controller,
     String label,

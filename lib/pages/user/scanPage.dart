@@ -1,4 +1,3 @@
-// ignore_for_file: file_names
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -116,7 +115,6 @@ class _ScanPageState extends State<ScanPage>
             ),
           ),
 
-          // Dark overlay with cutout
           CustomPaint(
             size: size,
             painter: _OverlayPainter(
@@ -125,7 +123,6 @@ class _ScanPageState extends State<ScanPage>
             ),
           ),
 
-          // Scan frame with animated corners
           Positioned(
             left: (size.width - scanSize) / 2,
             top: size.height / 2 - scanSize / 2 - 40,
@@ -148,7 +145,6 @@ class _ScanPageState extends State<ScanPage>
             ),
           ),
 
-          // Scan laser line
           if (!_isProcessing)
             Positioned(
               left: (size.width - scanSize) / 2,
@@ -168,7 +164,6 @@ class _ScanPageState extends State<ScanPage>
               ),
             ),
 
-          // Processing overlay
           if (_isProcessing)
             Container(
               color: Colors.black.withValues(alpha: 0.5),
@@ -199,7 +194,6 @@ class _ScanPageState extends State<ScanPage>
               ),
             ),
 
-          // Top bar
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -257,7 +251,6 @@ class _ScanPageState extends State<ScanPage>
             ),
           ),
 
-          // Bottom info card
           Positioned(
             bottom: 0,
             left: 0,
@@ -390,22 +383,18 @@ class _CornerPainter extends CustomPainter {
     const r = 16.0;
     const len = 28.0;
 
-    // Top-left
     canvas.drawLine(const Offset(r, 0), const Offset(r + len, 0), paint);
     canvas.drawLine(const Offset(0, r), const Offset(0, r + len), paint);
     canvas.drawArc(const Rect.fromLTWH(0, 0, r * 2, r * 2), 3.14159, 3.14159 / 2, false, paint);
 
-    // Top-right
     canvas.drawLine(Offset(size.width - r - len, 0), Offset(size.width - r, 0), paint);
     canvas.drawLine(Offset(size.width, r), Offset(size.width, r + len), paint);
     canvas.drawArc(Rect.fromLTWH(size.width - r * 2, 0, r * 2, r * 2), -3.14159 / 2, 3.14159 / 2, false, paint);
 
-    // Bottom-left
     canvas.drawLine(Offset(0, size.height - r - len), Offset(0, size.height - r), paint);
     canvas.drawLine(Offset(r, size.height), Offset(r + len, size.height), paint);
     canvas.drawArc(Rect.fromLTWH(0, size.height - r * 2, r * 2, r * 2), 3.14159 / 2, 3.14159 / 2, false, paint);
 
-    // Bottom-right
     canvas.drawLine(Offset(size.width - r - len, size.height), Offset(size.width - r, size.height), paint);
     canvas.drawLine(Offset(size.width, size.height - r - len), Offset(size.width, size.height - r), paint);
     canvas.drawArc(Rect.fromLTWH(size.width - r * 2, size.height - r * 2, r * 2, r * 2), 0, 3.14159 / 2, false, paint);

@@ -1,4 +1,3 @@
-// ignore_for_file: file_names
 
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
@@ -47,7 +46,6 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
-        // Geri tuşunu ekleyen ve stilini diğer sayfalarla uyumlu yapan kısım:
         leading: IconButton(
           icon: const Icon(
             Icons.arrow_back_ios_new,

@@ -1,4 +1,3 @@
-// ignore_for_file: file_names, use_build_context_synchronously
 
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
@@ -23,7 +22,6 @@ class _RegisterPageState extends State<RegisterPage> {
   void _register() async {
     debugPrint("🔴 LOG: Kayıt işlemi tetiklendi.");
 
-    // 1. Şifre Eşleşme Kontrolü
     if (_passwordController.text != _confirmPasswordController.text) {
       debugPrint("🔴 LOG: Hata - Şifreler uyuşmuyor.");
       ScaffoldMessenger.of(
@@ -32,7 +30,6 @@ class _RegisterPageState extends State<RegisterPage> {
       return;
     }
 
-    // 2. Alanların Doluluk Kontrolü
     if (_nameController.text.isEmpty ||
         _emailController.text.isEmpty ||
         _passwordController.text.isEmpty) {
@@ -47,7 +44,6 @@ class _RegisterPageState extends State<RegisterPage> {
     debugPrint("🔴 LOG: Loading açıldı, işlemler başlıyor...");
 
     try {
-      // 4. KAYIT İŞLEMİ
       debugPrint("🔴 LOG: AuthService.registerUser çağrılıyor...");
 
       String? error = await _authService.registerUser(
@@ -92,7 +88,6 @@ class _RegisterPageState extends State<RegisterPage> {
 
   @override
   Widget build(BuildContext context) {
-    // UI kısmını değiştirmedim, aynı şekilde bıraktım.
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(

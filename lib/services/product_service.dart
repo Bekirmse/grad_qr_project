@@ -7,10 +7,8 @@ import '../models/supermarket_model.dart';
 class ProductService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // 1. Ürün Detayını Getir
   Future<Product?> getProduct(String barcode) async {
     try {
-      // 'products' koleksiyonunda barcode alanı eşleşen dokümanı bul
       var snapshot =
           await _firestore
               .collection('products')
@@ -30,23 +28,19 @@ class ProductService {
     }
   }
 
-  // 2. Fiyatları ve Market Bilgilerini Getir (JOIN İşlemi)
   Future<List<Price>> getPricesForProduct(String barcode) async {
     try {
       List<Price> pricesList = [];
 
-      // A. 'prices' tablosundan bu barkoda ait fiyatları çek
       var priceSnapshot =
           await _firestore
               .collection('prices')
               .where('productBarcode', isEqualTo: barcode)
               .get();
 
-      // B. Her bir fiyat için market ismini bulmamız lazım
       for (var doc in priceSnapshot.docs) {
         Price priceObj = Price.fromMap(doc.data());
 
-        // C. 'supermarkets' tablosuna git ve marketId ile market adını bul
         var marketSnapshot =
             await _firestore
                 .collection('supermarkets')
@@ -58,7 +52,6 @@ class ProductService {
           Supermarket market = Supermarket.fromMap(
             marketSnapshot.docs.first.data(),
           );
-          // Fiyat objesine market ismini ve logosunu ekle
           priceObj.marketName = market.name;
           priceObj.marketLogoUrl = market.logoUrl;
         } else {
@@ -68,7 +61,6 @@ class ProductService {
         pricesList.add(priceObj);
       }
 
-      // D. Fiyatları ucuzdan pahalıya sırala (Sort)
       pricesList.sort((a, b) => a.price.compareTo(b.price));
 
       return pricesList;

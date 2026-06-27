@@ -1,4 +1,3 @@
-// ignore_for_file: file_names
 
 import 'dart:math';
 import 'package:flutter/foundation.dart';
@@ -817,7 +816,6 @@ Future<void> _fetchData({bool isRefresh = false}) async {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Market icon
             Container(
               width: 50,
               height: 50,
@@ -844,7 +842,6 @@ Future<void> _fetchData({bool isRefresh = false}) async {
                     ),
             ),
             const SizedBox(width: 12),
-            // Market name + best deal badge
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -878,7 +875,6 @@ Future<void> _fetchData({bool isRefresh = false}) async {
               ),
             ),
             const SizedBox(width: 8),
-            // Price + Add to Cart
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
