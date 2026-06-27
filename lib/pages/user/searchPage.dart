@@ -1,8 +1,8 @@
 // ignore_for_file: file_names
 
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:grad_qr_project/services/api_price_service.dart';
 import 'resultPage.dart';
 
 class SearchPage extends StatefulWidget {
@@ -69,18 +69,12 @@ class _SearchPageState extends State<SearchPage> {
                   ),
                 ),
                 const SizedBox(height: 14),
-                StreamBuilder<QuerySnapshot>(
-                  stream:
-                      FirebaseFirestore.instance
-                          .collection('categories')
-                          .orderBy('name')
-                          .snapshots(),
+                FutureBuilder<List<String>>(
+                  future: ApiPriceService.getCategories(),
                   builder: (context, snapshot) {
                     List<String> cats = ['All'];
                     if (snapshot.hasData) {
-                      for (var d in snapshot.data!.docs) {
-                        cats.add(d['name']);
-                      }
+                      cats.addAll(snapshot.data ?? []);
                     }
                     return SizedBox(
                       height: 36,
@@ -137,16 +131,11 @@ class _SearchPageState extends State<SearchPage> {
             ),
           ),
           Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream:
-                  _selectedCategory == 'All'
-                      ? FirebaseFirestore.instance
-                          .collection('products')
-                          .snapshots()
-                      : FirebaseFirestore.instance
-                          .collection('products')
-                          .where('category', isEqualTo: _selectedCategory)
-                          .snapshots(),
+            child: FutureBuilder<List<Map<String, dynamic>>>(
+              future: ApiPriceService.getAllProducts(
+                category: _selectedCategory == 'All' ? null : _selectedCategory,
+                search: _searchCtrl.text.isNotEmpty ? _searchCtrl.text : null,
+              ),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(
@@ -154,29 +143,13 @@ class _SearchPageState extends State<SearchPage> {
                   );
                 }
 
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                if (!snapshot.hasData || snapshot.data!.isEmpty) {
                   return _buildEmpty();
                 }
 
-                var docs = snapshot.data!.docs;
+                var products = snapshot.data ?? [];
 
-                if (_searchCtrl.text.isNotEmpty) {
-                  final q = _searchCtrl.text.toLowerCase();
-                  docs =
-                      docs.where((d) {
-                        final data = d.data() as Map<String, dynamic>;
-                        return (data['productName'] ?? '')
-                                .toString()
-                                .toLowerCase()
-                                .contains(q) ||
-                            (data['brand'] ?? '')
-                                .toString()
-                                .toLowerCase()
-                                .contains(q);
-                      }).toList();
-                }
-
-                if (docs.isEmpty) return _buildEmpty();
+                if (products.isEmpty) return _buildEmpty();
 
                 return GridView.builder(
                   padding: const EdgeInsets.all(16),
@@ -186,10 +159,10 @@ class _SearchPageState extends State<SearchPage> {
                     crossAxisSpacing: 14,
                     mainAxisSpacing: 14,
                   ),
-                  itemCount: docs.length,
+                  itemCount: products.length,
                   itemBuilder: (context, index) {
-                    final data = docs[index].data() as Map<String, dynamic>;
-                    final barcode = docs[index].id;
+                    final data = products[index];
+                    final barcode = data['barcode']?.toString() ?? '';
                     return _ProductGridCard(data: data, barcode: barcode);
                   },
                 );

@@ -9,6 +9,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:grad_qr_project/pages/user/resultPage.dart';
 import 'package:grad_qr_project/services/notification_service.dart';
 import 'package:grad_qr_project/services/market_api_service.dart';
+import 'package:grad_qr_project/services/api_price_service.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -292,18 +293,12 @@ class _HomePageState extends State<HomePage> {
       padding: const EdgeInsets.only(top: 20, bottom: 4),
       child: SizedBox(
         height: 40,
-        child: StreamBuilder<QuerySnapshot>(
-          stream:
-              FirebaseFirestore.instance
-                  .collection('categories')
-                  .orderBy('name')
-                  .snapshots(),
+        child: FutureBuilder<List<String>>(
+          future: ApiPriceService.getCategories(),
           builder: (context, snapshot) {
             List<String> cats = ["All"];
             if (snapshot.hasData) {
-              for (var d in snapshot.data!.docs) {
-                cats.add(d['name']);
-              }
+              cats.addAll(snapshot.data ?? []);
             }
             return ListView.builder(
               scrollDirection: Axis.horizontal,
@@ -434,18 +429,10 @@ class _HomePageState extends State<HomePage> {
   Widget _buildProductList() {
     return SliverPadding(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
-      sliver: StreamBuilder<QuerySnapshot>(
-        stream:
-            _selectedCategory == "All"
-                ? FirebaseFirestore.instance
-                    .collection('products')
-                    .limit(10)
-                    .snapshots()
-                : FirebaseFirestore.instance
-                    .collection('products')
-                    .where('category', isEqualTo: _selectedCategory)
-                    .limit(10)
-                    .snapshots(),
+      sliver: FutureBuilder<List<Map<String, dynamic>>>(
+        future: ApiPriceService.getAllProducts(
+          category: _selectedCategory == "All" ? null : _selectedCategory,
+        ),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const SliverToBoxAdapter(
@@ -457,7 +444,7 @@ class _HomePageState extends State<HomePage> {
               ),
             );
           }
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          if (!snapshot.hasData || snapshot.data!.isEmpty) {
             return const SliverToBoxAdapter(
               child: Center(
                 child: Padding(
@@ -468,20 +455,20 @@ class _HomePageState extends State<HomePage> {
             );
           }
 
-          final docs = snapshot.data!.docs;
-          debugPrint('Category: $_selectedCategory, Products count: ${docs.length}');
-          for (var i = 0; i < docs.length; i++) {
-            debugPrint('  [$i] ${docs[i].id} - ${docs[i]['productName']}');
+          final products = snapshot.data ?? [];
+          debugPrint('Category: $_selectedCategory, Products count: ${products.length}');
+          for (var i = 0; i < products.length && i < 5; i++) {
+            debugPrint('  [$i] ${products[i]['barcode']} - ${products[i]['productName']}');
           }
           return SliverList(
             delegate: SliverChildBuilderDelegate((context, index) {
-              final data = docs[index].data() as Map<String, dynamic>;
-              final barcode = docs[index].id;
+              final data = products[index];
+              final barcode = data['barcode']?.toString() ?? '';
               return GestureDetector(
-                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ResultPage(barcode: barcode))),
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ResultPage(barcode: barcode, productData: data))),
                 child: ProductCard(data: data, barcode: barcode),
               );
-            }, childCount: docs.length),
+            }, childCount: products.length),
           );
         },
       ),
