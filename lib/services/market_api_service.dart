@@ -73,26 +73,31 @@ class MarketApiService {
     String barcode,
     String city,
   ) async {
-    debugPrint('===== MarketApiService.searchProductInCity =====');
-    debugPrint('Barcode: $barcode, City: $city');
+    try {
+      debugPrint('===== MarketApiService.searchProductInCity =====');
+      debugPrint('Barcode: $barcode, City: $city');
 
-    if (city == 'All') {
-      debugPrint('City is All, querying all cities: $_allCities');
-      final futures = _allCities.map((c) => _fetchCity(barcode, c));
-      final results = await Future.wait(futures);
-      debugPrint(
-        'Results from each city: ${results.map((r) => r.length).toList()}',
-      );
-      final combined = results.expand((r) => r).toList();
-      debugPrint('Combined results: ${combined.length}');
-      combined.sort((a, b) => a.price.compareTo(b.price));
-      return combined;
+      if (city == 'All') {
+        debugPrint('City is All, querying all cities: $_allCities');
+        final futures = _allCities.map((c) => _fetchCity(barcode, c));
+        final results = await Future.wait(futures);
+        debugPrint(
+          'Results from each city: ${results.map((r) => r.length).toList()}',
+        );
+        final combined = results.expand((r) => r).toList();
+        debugPrint('Combined results: ${combined.length}');
+        combined.sort((a, b) => a.price.compareTo(b.price));
+        return combined;
+      }
+
+      final results = await _fetchCity(barcode, city);
+      debugPrint('Results for $city: ${results.length}');
+      results.sort((a, b) => a.price.compareTo(b.price));
+      return results;
+    } catch (e) {
+      debugPrint('Error searching product in city: $e');
+      return [];
     }
-
-    final results = await _fetchCity(barcode, city);
-    debugPrint('Results for $city: ${results.length}');
-    results.sort((a, b) => a.price.compareTo(b.price));
-    return results;
   }
 
   static Future<List<MarketSearchResult>> _fetchCity(
