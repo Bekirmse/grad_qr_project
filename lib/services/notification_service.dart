@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class NotificationService {
@@ -9,15 +10,19 @@ class NotificationService {
     required String marketName,
     required String reason,
   }) async {
-    await _db.collection('notifications').add({
-      'userId': userId,
-      'type': 'order_cancelled',
-      'productName': productName,
-      'marketName': marketName,
-      'reason': reason,
-      'read': false,
-      'timestamp': FieldValue.serverTimestamp(),
-    });
+    try {
+      await _db.collection('notifications').add({
+        'userId': userId,
+        'type': 'order_cancelled',
+        'productName': productName,
+        'marketName': marketName,
+        'reason': reason,
+        'read': false,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      debugPrint('Error sending order cancelled notification: $e');
+    }
   }
 
   static Future<void> sendDiscountNotification({
@@ -28,18 +33,22 @@ class NotificationService {
     required double discountPrice,
     String? marketName,
   }) async {
-    await _db.collection('notifications').add({
-      'userId': userId,
-      'type': 'discount_alert',
-      'productName': productName,
-      'barcode': barcode,
-      'marketName': marketName,
-      'originalPrice': originalPrice,
-      'discountPrice': discountPrice,
-      'savings': originalPrice - discountPrice,
-      'read': false,
-      'timestamp': FieldValue.serverTimestamp(),
-    });
+    try {
+      await _db.collection('notifications').add({
+        'userId': userId,
+        'type': 'discount_alert',
+        'productName': productName,
+        'barcode': barcode,
+        'marketName': marketName,
+        'originalPrice': originalPrice,
+        'discountPrice': discountPrice,
+        'savings': originalPrice - discountPrice,
+        'read': false,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      debugPrint('Error sending discount notification: $e');
+    }
   }
 
   static Future<void> sendOrderReceivedNotification({
@@ -47,14 +56,18 @@ class NotificationService {
     required String productName,
     required String marketName,
   }) async {
-    await _db.collection('notifications').add({
-      'userId': userId,
-      'type': 'order_received',
-      'productName': productName,
-      'marketName': marketName,
-      'read': false,
-      'timestamp': FieldValue.serverTimestamp(),
-    });
+    try {
+      await _db.collection('notifications').add({
+        'userId': userId,
+        'type': 'order_received',
+        'productName': productName,
+        'marketName': marketName,
+        'read': false,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      debugPrint('Error sending order received notification: $e');
+    }
   }
 
   static Future<void> sendOrderPreparingNotification({
@@ -62,14 +75,18 @@ class NotificationService {
     required String productName,
     required String marketName,
   }) async {
-    await _db.collection('notifications').add({
-      'userId': userId,
-      'type': 'order_preparing',
-      'productName': productName,
-      'marketName': marketName,
-      'read': false,
-      'timestamp': FieldValue.serverTimestamp(),
-    });
+    try {
+      await _db.collection('notifications').add({
+        'userId': userId,
+        'type': 'order_preparing',
+        'productName': productName,
+        'marketName': marketName,
+        'read': false,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      debugPrint('Error sending order preparing notification: $e');
+    }
   }
 
   static Stream<List<Map<String, dynamic>>> getNotifications(String userId) {
@@ -98,17 +115,29 @@ class NotificationService {
   }
 
   static Future<void> markAsRead(String notificationId) async {
-    await _db.collection('notifications').doc(notificationId).update({'read': true});
+    try {
+      await _db.collection('notifications').doc(notificationId).update({'read': true});
+    } catch (e) {
+      debugPrint('Error marking notification as read: $e');
+    }
   }
 
   static Future<void> markAllAsRead(String userId) async {
-    final snap = await _db
-        .collection('notifications')
-        .where('userId', isEqualTo: userId)
-        .where('read', isEqualTo: false)
-        .get();
-    for (var doc in snap.docs) {
-      await doc.reference.update({'read': true});
+    try {
+      final snap = await _db
+          .collection('notifications')
+          .where('userId', isEqualTo: userId)
+          .where('read', isEqualTo: false)
+          .get();
+      for (var doc in snap.docs) {
+        try {
+          await doc.reference.update({'read': true});
+        } catch (e) {
+          debugPrint('Error marking individual notification as read: $e');
+        }
+      }
+    } catch (e) {
+      debugPrint('Error marking all notifications as read: $e');
     }
   }
 }

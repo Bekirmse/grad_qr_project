@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -61,15 +62,31 @@ class AuthService {
     required Function(String, int?) onCodeSent,
     required Function(FirebaseAuthException) onVerificationFailed,
   }) async {
-    await _auth.verifyPhoneNumber(
-      phoneNumber: phoneNumber,
-      verificationCompleted: (PhoneAuthCredential credential) async {
-        await _auth.signInWithCredential(credential);
-      },
-      verificationFailed: onVerificationFailed,
-      codeSent: onCodeSent,
-      codeAutoRetrievalTimeout: (_) {},
-    );
+    try {
+      await _auth.verifyPhoneNumber(
+        phoneNumber: phoneNumber,
+        verificationCompleted: (PhoneAuthCredential credential) async {
+          try {
+            await _auth.signInWithCredential(credential);
+          } catch (e) {
+            debugPrint('Error signing in with phone credential: $e');
+            onVerificationFailed(FirebaseAuthException(
+              code: 'sign-in-failed',
+              message: 'Error signing in: $e',
+            ));
+          }
+        },
+        verificationFailed: onVerificationFailed,
+        codeSent: onCodeSent,
+        codeAutoRetrievalTimeout: (_) {},
+      );
+    } catch (e) {
+      debugPrint('Error starting phone authentication: $e');
+      onVerificationFailed(FirebaseAuthException(
+        code: 'verification-error',
+        message: 'Error verifying phone: $e',
+      ));
+    }
   }
 
   Future<String?> verifyOtpAndLogin({
@@ -112,29 +129,48 @@ class AuthService {
   }
 
   Future<String> getUserRole() async {
-    final user = _auth.currentUser;
-    if (user != null) {
-      final doc = await _firestore.collection('users').doc(user.uid).get();
-      if (doc.exists) {
-        return doc.data()?['role'] ?? 'user';
+    try {
+      final user = _auth.currentUser;
+      if (user != null) {
+        final doc = await _firestore.collection('users').doc(user.uid).get();
+        if (doc.exists) {
+          return doc.data()?['role'] ?? 'user';
+        }
       }
+      return 'user';
+    } catch (e) {
+      debugPrint('Error getting user role: $e');
+      return 'user';
     }
-    return 'user';
   }
 
   Future<void> signOut() async {
-    await _auth.signOut();
+    try {
+      await _auth.signOut();
+    } catch (e) {
+      debugPrint('Error signing out: $e');
+      rethrow;
+    }
   }
 
   Future<void> sendEmailVerification() async {
-    final user = _auth.currentUser;
-    if (user != null && !user.emailVerified) {
-      await user.sendEmailVerification();
+    try {
+      final user = _auth.currentUser;
+      if (user != null && !user.emailVerified) {
+        await user.sendEmailVerification();
+      }
+    } catch (e) {
+      debugPrint('Error sending email verification: $e');
+      rethrow;
     }
   }
 
   Future<void> reloadUser() async {
-    await _auth.currentUser?.reload();
+    try {
+      await _auth.currentUser?.reload();
+    } catch (e) {
+      debugPrint('Error reloading user: $e');
+    }
   }
 
   bool isEmailVerified() {

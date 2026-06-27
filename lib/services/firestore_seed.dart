@@ -1,36 +1,56 @@
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class FirestoreSeed {
   static final _db = FirebaseFirestore.instance;
 
   static Future<void> run() async {
-    await _seedCategories();
-    await _seedProducts();
+    try {
+      await _seedCategories();
+      await _seedProducts();
+    } catch (e) {
+      debugPrint('Error running firestore seed: $e');
+    }
   }
 
   static Future<void> _seedCategories() async {
-    final categories = ['Beverages', 'Snacks', 'Food', 'Dairy'];
-    final col = _db.collection('categories');
+    try {
+      final categories = ['Beverages', 'Snacks', 'Food', 'Dairy'];
+      final col = _db.collection('categories');
 
-    final existing = await col.get();
-    for (var doc in existing.docs) {
-      await doc.reference.delete();
+      final existing = await col.get();
+      for (var doc in existing.docs) {
+        try {
+          await doc.reference.delete();
+        } catch (e) {
+          debugPrint('Error deleting category: $e');
+        }
+      }
+
+      for (final name in categories) {
+        try {
+          await col.add({'name': name});
+        } catch (e) {
+          debugPrint('Error adding category $name: $e');
+        }
+      }
+    } catch (e) {
+      debugPrint('Error seeding categories: $e');
     }
-
-    for (final name in categories) {
-      await col.add({'name': name});
-    }
-
-
   }
 
   static Future<void> _seedProducts() async {
-    final col = _db.collection('products');
+    try {
+      final col = _db.collection('products');
 
-    final existing = await col.get();
-    for (var doc in existing.docs) {
-      await doc.reference.delete();
-    }
+      final existing = await col.get();
+      for (var doc in existing.docs) {
+        try {
+          await doc.reference.delete();
+        } catch (e) {
+          debugPrint('Error deleting product: $e');
+        }
+      }
 
     final products = [
       {
@@ -134,11 +154,18 @@ class FirestoreSeed {
       },
     ];
 
-    final productsCol = _db.collection('products');
+      final productsCol = _db.collection('products');
 
-    for (final p in products) {
-      final barcode = p['barcode'] as String;
-      await productsCol.doc(barcode).set(p, SetOptions(merge: true));
+      for (final p in products) {
+        try {
+          final barcode = p['barcode'] as String;
+          await productsCol.doc(barcode).set(p, SetOptions(merge: true));
+        } catch (e) {
+          debugPrint('Error adding product: $e');
+        }
+      }
+    } catch (e) {
+      debugPrint('Error seeding products: $e');
     }
   }
 }
