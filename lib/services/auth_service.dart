@@ -8,11 +8,23 @@ class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  Future<String?> registerAdmin({
+    required String fullName,
+    required String email,
+    required String password,
+  }) async {
+    return registerUser(
+      fullName: fullName,
+      email: email,
+      password: password,
+      role: 'admin',
+    );
+  }
+
   Future<String?> registerUser({
     required String fullName,
     required String email,
     required String password,
-    String phoneNumber = '',
     String role = 'user',
   }) async {
     try {
@@ -21,16 +33,15 @@ class AuthService {
         'uid': cred.user!.uid,
         'fullName': fullName,
         'email': email,
-        'phoneNumber': phoneNumber,
         'role': role,
         'isVerified': false,
         'createdAt': FieldValue.serverTimestamp(),
       });
       return null;
     } on FirebaseAuthException catch (e) {
-      return e.message;
-    } catch (e) {
-      return 'An error occurred: $e';
+      return _authErrorMessage(e.code);
+    } catch (_) {
+      return 'Bir hata oluştu. Lütfen tekrar deneyin.';
     }
   }
 
@@ -39,7 +50,33 @@ class AuthService {
       await _auth.signInWithEmailAndPassword(email: email, password: password);
       return null;
     } on FirebaseAuthException catch (e) {
-      return e.message;
+      return _authErrorMessage(e.code);
+    }
+  }
+
+  static String _authErrorMessage(String code) {
+    switch (code) {
+      case 'user-not-found':
+      case 'invalid-credential':
+        return 'No account found with this email address.';
+      case 'wrong-password':
+        return 'Incorrect password. Please try again.';
+      case 'invalid-email':
+        return 'Please enter a valid email address.';
+      case 'user-disabled':
+        return 'This account has been disabled. Please contact support.';
+      case 'email-already-in-use':
+        return 'This email address is already in use.';
+      case 'weak-password':
+        return 'Password is too weak. Use at least 6 characters.';
+      case 'too-many-requests':
+        return 'Too many attempts. Please wait a moment and try again.';
+      case 'network-request-failed':
+        return 'No internet connection. Please check your network.';
+      case 'operation-not-allowed':
+        return 'This sign-in method is not supported.';
+      default:
+        return 'Something went wrong. Please try again.';
     }
   }
 
@@ -177,6 +214,10 @@ class AuthService {
     return _auth.currentUser?.emailVerified ?? false;
   }
 
+  String? currentUserId() {
+    return _auth.currentUser?.uid;
+  }
+
   Future<String?> signInWithGoogle() async {
     try {
       final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
@@ -196,13 +237,20 @@ class AuthService {
         if (!userDoc.exists) {
           await _firestore.collection('users').doc(user.uid).set({
             'uid': user.uid,
-            'fullName': user.displayName ?? 'User',
+            'fullName': user.displayName ?? googleUser.displayName ?? 'User',
             'email': user.email ?? '',
-            'phoneNumber': '',
             'role': 'user',
             'isVerified': true,
             'createdAt': FieldValue.serverTimestamp(),
           });
+        } else {
+          final existingName = userDoc.data()?['fullName']?.toString() ?? '';
+          final newName = user.displayName ?? googleUser.displayName ?? '';
+          if (existingName.isEmpty || existingName == 'User') {
+            if (newName.isNotEmpty) {
+              await _firestore.collection('users').doc(user.uid).update({'fullName': newName});
+            }
+          }
         }
       }
       return null;
@@ -214,7 +262,7 @@ class AuthService {
   Future<String?> signInWithApple() async {
     try {
       final credential = await SignInWithApple.getAppleIDCredential(
-        scopes: [],
+        scopes: [AppleIDAuthorizationScopes.email, AppleIDAuthorizationScopes.fullName],
       );
 
       final oauthCredential = OAuthProvider('apple.com').credential(
@@ -226,17 +274,27 @@ class AuthService {
       final user = userCredential.user;
 
       if (user != null) {
+        final appleFullName = [
+          credential.givenName ?? '',
+          credential.familyName ?? '',
+        ].where((s) => s.isNotEmpty).join(' ');
+
         final userDoc = await _firestore.collection('users').doc(user.uid).get();
         if (!userDoc.exists) {
           await _firestore.collection('users').doc(user.uid).set({
             'uid': user.uid,
-            'fullName': user.displayName ?? 'User',
-            'email': user.email ?? '',
-            'phoneNumber': '',
+            'fullName': appleFullName.isNotEmpty ? appleFullName : (user.displayName ?? 'User'),
+            'email': user.email ?? credential.email ?? '',
             'role': 'user',
             'isVerified': true,
             'createdAt': FieldValue.serverTimestamp(),
           });
+        } else {
+          final existingName = userDoc.data()?['fullName']?.toString() ?? '';
+          final newName = appleFullName.isNotEmpty ? appleFullName : (user.displayName ?? '');
+          if ((existingName.isEmpty || existingName == 'User') && newName.isNotEmpty) {
+            await _firestore.collection('users').doc(user.uid).update({'fullName': newName});
+          }
         }
       }
       return null;

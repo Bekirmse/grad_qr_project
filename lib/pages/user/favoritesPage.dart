@@ -1,3 +1,4 @@
+// ignore_for_file: file_names
 
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -28,7 +29,11 @@ class FavoritesPage extends StatelessWidget {
         ),
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, size: 18, color: Color(0xFF1A1A2E)),
+          icon: const Icon(
+            Icons.arrow_back_ios_new,
+            size: 18,
+            color: Color(0xFF1A1A2E),
+          ),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -77,7 +82,9 @@ class FavoritesPage extends StatelessWidget {
 
                       debugPrint('===== FavoritesPage Item =====');
                       debugPrint('>>> BARCODE TO OPEN: $barcode <<<');
-                      debugPrint('Document ID (Barcode): "$barcode" (length: ${barcode.length})');
+                      debugPrint(
+                        'Document ID (Barcode): "$barcode" (length: ${barcode.length})',
+                      );
                       debugPrint('ProductName: ${data['productName']}');
                       debugPrint('Full Data: $data');
 
@@ -181,50 +188,82 @@ class _FavoriteCardState extends State<_FavoriteCard> {
 
   Future<(String, bool)> _getProductInfo() async {
     var localImageUrl = widget.data['imageUrl']?.toString() ?? '';
-    debugPrint('🖼️ FavoriteCard[${widget.barcode}] localImageUrl: "$localImageUrl"');
+    debugPrint(
+      '🖼️ FavoriteCard[${widget.barcode}] localImageUrl: "$localImageUrl"',
+    );
 
     if (localImageUrl.contains('via.placeholder')) {
-      debugPrint('🖼️ FavoriteCard[${widget.barcode}] placeholder URL detected, fetching real from Firebase');
+      debugPrint(
+        '🖼️ FavoriteCard[${widget.barcode}] placeholder URL detected, fetching real from Firebase',
+      );
       try {
-        final firebaseProduct = await FirebaseFirestore.instance
-            .collection('products')
-            .doc(widget.barcode)
-            .get();
+        final firebaseProduct =
+            await FirebaseFirestore.instance
+                .collection('products')
+                .doc(widget.barcode)
+                .get();
         if (firebaseProduct.exists) {
           final realUrl = firebaseProduct.data()?['imageUrl'] ?? '';
           if (realUrl.isNotEmpty) {
             localImageUrl = realUrl;
-            debugPrint('🖼️ FavoriteCard[${widget.barcode}] got real URL from Firebase: "$localImageUrl"');
+            debugPrint(
+              '🖼️ FavoriteCard[${widget.barcode}] got real URL from Firebase: "$localImageUrl"',
+            );
           }
         }
       } catch (e) {
-        debugPrint('🖼️ FavoriteCard[${widget.barcode}] error fetching from Firebase: $e');
+        debugPrint(
+          '🖼️ FavoriteCard[${widget.barcode}] error fetching from Firebase: $e',
+        );
       }
     }
 
-    if (localImageUrl.isNotEmpty && !localImageUrl.contains('via.placeholder')) {
+    if (localImageUrl.isNotEmpty &&
+        !localImageUrl.contains('via.placeholder')) {
       try {
-        final results = await MarketApiService.searchProductInCity(widget.barcode, 'All');
-        final hasDiscount = results.isNotEmpty && results.any((r) => r.discountPrice != null && r.discountPrice! < r.price);
-        debugPrint('🖼️ FavoriteCard[${widget.barcode}] found discount: $hasDiscount');
+        final results = await MarketApiService.searchProductInCity(
+          widget.barcode,
+          'All',
+        );
+        final hasDiscount =
+            results.isNotEmpty &&
+            results.any(
+              (r) => r.discountPrice != null && r.discountPrice! < r.price,
+            );
+        debugPrint(
+          '🖼️ FavoriteCard[${widget.barcode}] found discount: $hasDiscount',
+        );
         return (localImageUrl, hasDiscount);
       } catch (e) {
-        debugPrint('🖼️ FavoriteCard[${widget.barcode}] error checking discount: $e');
+        debugPrint(
+          '🖼️ FavoriteCard[${widget.barcode}] error checking discount: $e',
+        );
         return (localImageUrl, false);
       }
     }
 
-    debugPrint('🖼️ FavoriteCard[${widget.barcode}] local URL empty or still placeholder, fetching from API');
+    debugPrint(
+      '🖼️ FavoriteCard[${widget.barcode}] local URL empty or still placeholder, fetching from API',
+    );
     try {
-      final results = await MarketApiService.searchProductInCity(widget.barcode, 'All');
+      final results = await MarketApiService.searchProductInCity(
+        widget.barcode,
+        'All',
+      );
       if (results.isNotEmpty) {
         final photoUrl = results.first.photoUrl;
-        final hasDiscount = results.any((r) => r.discountPrice != null && r.discountPrice! < r.price);
-        debugPrint('🖼️ FavoriteCard[${widget.barcode}] API photoUrl: "$photoUrl", hasDiscount: $hasDiscount');
+        final hasDiscount = results.any(
+          (r) => r.discountPrice != null && r.discountPrice! < r.price,
+        );
+        debugPrint(
+          '🖼️ FavoriteCard[${widget.barcode}] API photoUrl: "$photoUrl", hasDiscount: $hasDiscount',
+        );
         return (photoUrl.isNotEmpty ? photoUrl : localImageUrl, hasDiscount);
       }
     } catch (e) {
-      debugPrint('🖼️ FavoriteCard[${widget.barcode}] Error fetching from API: $e');
+      debugPrint(
+        '🖼️ FavoriteCard[${widget.barcode}] Error fetching from API: $e',
+      );
     }
 
     debugPrint('🖼️ FavoriteCard[${widget.barcode}] returning empty URL');
@@ -233,7 +272,8 @@ class _FavoriteCardState extends State<_FavoriteCard> {
 
   @override
   Widget build(BuildContext context) {
-    final productName = widget.data['productName']?.toString() ?? 'Unknown Product';
+    final productName =
+        widget.data['productName']?.toString() ?? 'Unknown Product';
     final category = widget.data['category']?.toString() ?? '';
     final brand = widget.data['brand']?.toString() ?? '';
 
@@ -255,11 +295,12 @@ class _FavoriteCardState extends State<_FavoriteCard> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => ResultPage(
-                barcode: widget.barcode,
-                productData: widget.data,
-                preferredCity: (widget.data['city'] as String?) ?? 'All',
-              ),
+              builder:
+                  (context) => ResultPage(
+                    barcode: widget.barcode,
+                    productData: widget.data,
+                    preferredCity: (widget.data['city'] as String?) ?? 'All',
+                  ),
             ),
           );
         },
@@ -273,9 +314,12 @@ class _FavoriteCardState extends State<_FavoriteCard> {
                 builder: (context, snapshot) {
                   final photoUrl = snapshot.data?.$1 ?? '';
                   final hasDiscount = snapshot.data?.$2 ?? false;
-                  final isLoading = snapshot.connectionState == ConnectionState.waiting;
+                  final isLoading =
+                      snapshot.connectionState == ConnectionState.waiting;
 
-                  debugPrint('🔵 FutureBuilder builder: photoUrl="$photoUrl", hasDiscount=$hasDiscount, isLoading=$isLoading');
+                  debugPrint(
+                    '🔵 FutureBuilder builder: photoUrl="$photoUrl", hasDiscount=$hasDiscount, isLoading=$isLoading',
+                  );
 
                   return Stack(
                     children: [
@@ -286,41 +330,49 @@ class _FavoriteCardState extends State<_FavoriteCard> {
                           color: const Color(0xFFF5F7FA),
                           borderRadius: BorderRadius.circular(14),
                         ),
-                        child: isLoading
-                            ? const Center(
-                              child: SizedBox(
-                                width: 24,
-                                height: 24,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation(Color(0xFF2E7D32)),
-                                ),
-                              ),
-                            )
-                            : (photoUrl.isNotEmpty
-                                ? ClipRRect(
-                                  borderRadius: BorderRadius.circular(14),
-                                  child: Image.network(
-                                    photoUrl,
-                                    fit: BoxFit.contain,
-                                    errorBuilder: (_, __, ___) => const Icon(
-                                      Icons.image_not_supported_outlined,
-                                      color: Colors.grey,
+                        child:
+                            isLoading
+                                ? const Center(
+                                  child: SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation(
+                                        Color(0xFF2E7D32),
+                                      ),
                                     ),
                                   ),
                                 )
-                                : const Icon(
-                                  Icons.shopping_bag_outlined,
-                                  color: Colors.grey,
-                                  size: 30,
-                                )),
+                                : (photoUrl.isNotEmpty
+                                    ? ClipRRect(
+                                      borderRadius: BorderRadius.circular(14),
+                                      child: Image.network(
+                                        photoUrl,
+                                        fit: BoxFit.contain,
+                                        errorBuilder:
+                                            (_, __, ___) => const Icon(
+                                              Icons
+                                                  .image_not_supported_outlined,
+                                              color: Colors.grey,
+                                            ),
+                                      ),
+                                    )
+                                    : const Icon(
+                                      Icons.shopping_bag_outlined,
+                                      color: Colors.grey,
+                                      size: 30,
+                                    )),
                       ),
                       if (hasDiscount)
                         Positioned(
                           top: 0,
                           right: 0,
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: const Color(0xFFE53935),
                               borderRadius: BorderRadius.circular(4),

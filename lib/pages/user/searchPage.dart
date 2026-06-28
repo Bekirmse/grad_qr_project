@@ -1,3 +1,4 @@
+// ignore_for_file: file_names
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -29,7 +30,11 @@ class _SearchPageState extends State<SearchPage> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, size: 18, color: Color(0xFF1A1A2E)),
+          icon: const Icon(
+            Icons.arrow_back_ios_new,
+            size: 18,
+            color: Color(0xFF1A1A2E),
+          ),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
@@ -85,8 +90,7 @@ class _SearchPageState extends State<SearchPage> {
                           final selected = _selectedCategory == cat;
                           return GestureDetector(
                             onTap:
-                                () =>
-                                    setState(() => _selectedCategory = cat),
+                                () => setState(() => _selectedCategory = cat),
                             child: AnimatedContainer(
                               duration: const Duration(milliseconds: 180),
                               margin: const EdgeInsets.only(right: 8),
@@ -111,7 +115,9 @@ class _SearchPageState extends State<SearchPage> {
                                 cat,
                                 style: GoogleFonts.poppins(
                                   color:
-                                      selected ? Colors.white : Colors.grey[700],
+                                      selected
+                                          ? Colors.white
+                                          : Colors.grey[700],
                                   fontWeight:
                                       selected
                                           ? FontWeight.w600
@@ -210,9 +216,7 @@ class _ProductGridCard extends StatelessWidget {
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (context) => ResultPage(barcode: barcode),
-          ),
+          MaterialPageRoute(builder: (context) => ResultPage(barcode: barcode)),
         );
       },
       child: Container(

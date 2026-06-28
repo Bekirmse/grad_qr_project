@@ -1,3 +1,4 @@
+// ignore_for_file: file_names
 
 import 'dart:math';
 import 'package:flutter/foundation.dart';
@@ -66,7 +67,7 @@ class _ResultPageState extends State<ResultPage> {
     _fetchData(isRefresh: true);
   }
 
-Future<void> _fetchData({bool isRefresh = false}) async {
+  Future<void> _fetchData({bool isRefresh = false}) async {
     if (!mounted) return;
     if (!isRefresh) setState(() => _isLoading = true);
 
@@ -88,16 +89,21 @@ Future<void> _fetchData({bool isRefresh = false}) async {
       debugPrint('API Results count: ${cityResults.length}');
       if (cityResults.isNotEmpty) {
         for (final result in cityResults) {
-          debugPrint('  - Market: ${result.marketName}, Price: ${result.price}, Barcode: ${result.barcode}');
+          debugPrint(
+            '  - Market: ${result.marketName}, Price: ${result.price}, Barcode: ${result.barcode}',
+          );
         }
       } else {
-        debugPrint('API returned empty results for barcode: $cleanBarcode, city: $_selectedCity');
+        debugPrint(
+          'API returned empty results for barcode: $cleanBarcode, city: $_selectedCity',
+        );
       }
 
       if (cityResults.isNotEmpty) {
         FirebaseFirestore.instance.collection('scanLogs').add({
           'barcode': cleanBarcode,
           'productName': cityResults.first.name,
+          'imageUrl': cityResults.first.photoUrl,
           'city': _selectedCity,
           'userEmail': _user?.email ?? 'guest',
           'userId': _user?.uid ?? '',
@@ -116,10 +122,11 @@ Future<void> _fetchData({bool isRefresh = false}) async {
           isFav = favDoc.exists;
         }
         if (mounted) {
-          final firebaseProduct = await FirebaseFirestore.instance
-              .collection('products')
-              .doc(cleanBarcode)
-              .get();
+          final firebaseProduct =
+              await FirebaseFirestore.instance
+                  .collection('products')
+                  .doc(cleanBarcode)
+                  .get();
 
           debugPrint('📦 Firebase product exists: ${firebaseProduct.exists}');
 
@@ -136,7 +143,9 @@ Future<void> _fetchData({bool isRefresh = false}) async {
             debugPrint('📦 Firebase brand: "$brand"');
             debugPrint('📦 Firebase category: "$category"');
           } else {
-            debugPrint('📦 Product not in Firebase, using API photoUrl: "$realImageUrl"');
+            debugPrint(
+              '📦 Product not in Firebase, using API photoUrl: "$realImageUrl"',
+            );
           }
 
           setState(() {
@@ -159,11 +168,13 @@ Future<void> _fetchData({bool isRefresh = false}) async {
                     )
                     .toList();
             priceList.sort((a, b) {
-              final aEff = (a['discountPrice'] != null
+              final aEff =
+                  (a['discountPrice'] != null
                       ? double.tryParse(a['discountPrice'].toString())
                       : null) ??
                   (double.tryParse(a['price'].toString()) ?? 0.0);
-              final bEff = (b['discountPrice'] != null
+              final bEff =
+                  (b['discountPrice'] != null
                       ? double.tryParse(b['discountPrice'].toString())
                       : null) ??
                   (double.tryParse(b['price'].toString()) ?? 0.0);
@@ -179,7 +190,9 @@ Future<void> _fetchData({bool isRefresh = false}) async {
       }
 
       if (_product != null) {
-        debugPrint('API returned no results, but product data already loaded from favorites');
+        debugPrint(
+          'API returned no results, but product data already loaded from favorites',
+        );
         if (mounted) {
           setState(() {
             _prices = [];
@@ -209,82 +222,123 @@ Future<void> _fetchData({bool isRefresh = false}) async {
     }
   }
 
-  void _showQuantityDialog(String marketName, double price, double? discountPrice, String currency) {
+  void _showQuantityDialog(
+    String marketName,
+    double price,
+    double? discountPrice,
+    String currency,
+  ) {
     int qty = 1;
     final displayPrice = discountPrice ?? price;
     showDialog(
       context: context,
-      builder: (_) => StatefulBuilder(
-        builder: (_, setState) => AlertDialog(
-          title: Text('Select Quantity', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  IconButton(onPressed: () => setState(() => qty = max(1, qty - 1)), icon: const Icon(Icons.remove)),
-                  Text('$qty', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold)),
-                  IconButton(onPressed: () => setState(() => qty++), icon: const Icon(Icons.add)),
-                ],
-              ),
-              const SizedBox(height: 16),
-              if (discountPrice != null)
-                Column(
-                  children: [
-                    Text(
-                      '${(price * qty).toStringAsFixed(2)} $currency',
-                      style: GoogleFonts.poppins(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey,
-                        decoration: TextDecoration.lineThrough,
+      builder:
+          (_) => StatefulBuilder(
+            builder:
+                (_, setState) => AlertDialog(
+                  title: Text(
+                    'Select Quantity',
+                    style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                  ),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: [
+                          IconButton(
+                            onPressed:
+                                () => setState(() => qty = max(1, qty - 1)),
+                            icon: const Icon(Icons.remove),
+                          ),
+                          Text(
+                            '$qty',
+                            style: GoogleFonts.poppins(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () => setState(() => qty++),
+                            icon: const Icon(Icons.add),
+                          ),
+                        ],
                       ),
+                      const SizedBox(height: 16),
+                      if (discountPrice != null)
+                        Column(
+                          children: [
+                            Text(
+                              '${(price * qty).toStringAsFixed(2)} $currency',
+                              style: GoogleFonts.poppins(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.grey,
+                                decoration: TextDecoration.lineThrough,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '${(discountPrice * qty).toStringAsFixed(2)} $currency',
+                              style: GoogleFonts.poppins(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: const Color(0xFFE53935),
+                              ),
+                            ),
+                          ],
+                        )
+                      else
+                        Text(
+                          '${(displayPrice * qty).toStringAsFixed(2)} $currency',
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFF2E7D32),
+                          ),
+                        ),
+                    ],
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Cancel'),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${(discountPrice * qty).toStringAsFixed(2)} $currency',
-                      style: GoogleFonts.poppins(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: const Color(0xFFE53935),
+                    ElevatedButton(
+                      onPressed: () {
+                        cartService.addItem(
+                          CartItem(
+                            barcode: widget.barcode,
+                            productName: _product!['productName'] ?? 'Unknown',
+                            marketName: marketName,
+                            price: price,
+                            discountPrice: discountPrice,
+                            currency: currency,
+                            city: _selectedCity,
+                            imageUrl: _product!['imageUrl'] ?? '',
+                            quantity: qty,
+                          ),
+                        );
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'Added $qty item(s) to cart',
+                              style: GoogleFonts.poppins(),
+                            ),
+                            backgroundColor: const Color(0xFF2E7D32),
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF2E7D32),
                       ),
+                      child: const Text('Add to Cart'),
                     ),
                   ],
-                )
-              else
-                Text(
-                  '${(displayPrice * qty).toStringAsFixed(2)} $currency',
-                  style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFF2E7D32)),
                 ),
-            ],
           ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-            ElevatedButton(
-              onPressed: () {
-                cartService.addItem(CartItem(
-                  barcode: widget.barcode,
-                  productName: _product!['productName'] ?? 'Unknown',
-                  marketName: marketName,
-                  price: price,
-                  discountPrice: discountPrice,
-                  currency: currency,
-                  city: _selectedCity,
-                  imageUrl: _product!['imageUrl'] ?? '',
-                  quantity: qty,
-                ));
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Added $qty item(s) to cart', style: GoogleFonts.poppins()), backgroundColor: const Color(0xFF2E7D32), duration: const Duration(seconds: 2)),
-                );
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2E7D32)),
-              child: const Text('Add to Cart'),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -485,8 +539,21 @@ Future<void> _fetchData({bool isRefresh = false}) async {
             onTap: () => Navigator.pop(context),
             child: Container(
               margin: const EdgeInsets.all(8),
-              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 8)]),
-              child: const Icon(Icons.arrow_back_ios_new, color: Color(0xFF1A1A2E), size: 18),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.08),
+                    blurRadius: 8,
+                  ),
+                ],
+              ),
+              child: const Icon(
+                Icons.arrow_back_ios_new,
+                color: Color(0xFF1A1A2E),
+                size: 18,
+              ),
             ),
           ),
         ),
@@ -494,9 +561,19 @@ Future<void> _fetchData({bool isRefresh = false}) async {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.search_off_rounded, size: 72, color: Color(0xFFE53935)),
+              const Icon(
+                Icons.search_off_rounded,
+                size: 72,
+                color: Color(0xFFE53935),
+              ),
               const SizedBox(height: 16),
-              Text('Product Not Found', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold)),
+              Text(
+                'Product Not Found',
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ],
           ),
         ),
@@ -707,16 +784,10 @@ Future<void> _fetchData({bool isRefresh = false}) async {
                 SliverPadding(
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
                   sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        final priceData = _prices[index];
-                        return _buildPriceCard(
-                          priceData,
-                          index == 0,
-                        );
-                      },
-                      childCount: _prices.length,
-                    ),
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      final priceData = _prices[index];
+                      return _buildPriceCard(priceData, index == 0);
+                    }, childCount: _prices.length),
                   ),
                 )
               else
@@ -786,28 +857,34 @@ Future<void> _fetchData({bool isRefresh = false}) async {
 
   Widget _buildPriceCard(Map<String, dynamic> priceData, bool isBest) {
     final price = double.tryParse(priceData['price'].toString()) ?? 0.0;
-    final discountPrice = priceData['discountPrice'] != null
-        ? double.tryParse(priceData['discountPrice'].toString())
-        : null;
+    final discountPrice =
+        priceData['discountPrice'] != null
+            ? double.tryParse(priceData['discountPrice'].toString())
+            : null;
     final effectivePrice = discountPrice ?? price;
     final currency = priceData['currency'] ?? 'TRY';
     final marketName = priceData['marketName'] ?? 'Unknown Market';
     final logoUrl = priceData['marketLogoUrl']?.toString() ?? '';
 
     return GestureDetector(
-      onTap: () => _showQuantityDialog(marketName, price, discountPrice, currency),
+      onTap:
+          () => _showQuantityDialog(marketName, price, discountPrice, currency),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(18),
-          border: isBest ? Border.all(color: const Color(0xFF2E7D32), width: 2) : null,
+          border:
+              isBest
+                  ? Border.all(color: const Color(0xFF2E7D32), width: 2)
+                  : null,
           boxShadow: [
             BoxShadow(
-              color: isBest
-                  ? const Color(0xFF2E7D32).withValues(alpha: 0.12)
-                  : Colors.black.withValues(alpha: 0.04),
+              color:
+                  isBest
+                      ? const Color(0xFF2E7D32).withValues(alpha: 0.12)
+                      : Colors.black.withValues(alpha: 0.04),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
@@ -820,26 +897,32 @@ Future<void> _fetchData({bool isRefresh = false}) async {
               width: 50,
               height: 50,
               decoration: BoxDecoration(
-                color: isBest ? const Color(0xFFE8F5E9) : const Color(0xFFF5F7FA),
+                color:
+                    isBest ? const Color(0xFFE8F5E9) : const Color(0xFFF5F7FA),
                 shape: BoxShape.circle,
               ),
-              child: logoUrl.isNotEmpty
-                  ? ClipOval(
-                      child: Image.network(
-                        logoUrl,
-                        fit: BoxFit.contain,
-                        errorBuilder: (_, __, ___) => Icon(
-                          Icons.store_rounded,
-                          color: isBest ? const Color(0xFF2E7D32) : Colors.grey,
-                          size: 24,
+              child:
+                  logoUrl.isNotEmpty
+                      ? ClipOval(
+                        child: Image.network(
+                          logoUrl,
+                          fit: BoxFit.contain,
+                          errorBuilder:
+                              (_, __, ___) => Icon(
+                                Icons.store_rounded,
+                                color:
+                                    isBest
+                                        ? const Color(0xFF2E7D32)
+                                        : Colors.grey,
+                                size: 24,
+                              ),
                         ),
+                      )
+                      : Icon(
+                        Icons.store_rounded,
+                        color: isBest ? const Color(0xFF2E7D32) : Colors.grey,
+                        size: 24,
                       ),
-                    )
-                  : Icon(
-                      Icons.store_rounded,
-                      color: isBest ? const Color(0xFF2E7D32) : Colors.grey,
-                      size: 24,
-                    ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -857,7 +940,10 @@ Future<void> _fetchData({bool isRefresh = false}) async {
                   if (isBest)
                     Container(
                       margin: const EdgeInsets.only(top: 4),
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: const Color(0xFFE8F5E9),
                         borderRadius: BorderRadius.circular(6),
@@ -892,16 +978,20 @@ Future<void> _fetchData({bool isRefresh = false}) async {
                   style: GoogleFonts.poppins(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
-                    color: discountPrice != null
-                        ? const Color(0xFFE53935)
-                        : isBest
+                    color:
+                        discountPrice != null
+                            ? const Color(0xFFE53935)
+                            : isBest
                             ? const Color(0xFF2E7D32)
                             : const Color(0xFF1A1A2E),
                   ),
                 ),
                 const SizedBox(height: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFF2E7D32),
                     borderRadius: BorderRadius.circular(8),

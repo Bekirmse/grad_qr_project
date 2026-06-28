@@ -1,3 +1,4 @@
+// ignore_for_file: file_names
 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -17,131 +18,149 @@ class _LoginPageState extends State<LoginPage> {
   final AuthService _authService = AuthService();
   bool _isObscure = true;
   bool _isLoading = false;
+  bool _showVerificationBanner = false;
+  bool _resendLoading = false;
+
+  String? _emailError;
+  String? _passwordError;
+  String? _generalError;
+
+  void _clearErrors() {
+    _emailError = null;
+    _passwordError = null;
+    _generalError = null;
+  }
+
+  bool _validate() {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+    bool valid = true;
+
+    if (email.isEmpty) {
+      _emailError = 'Please enter your email address.';
+      valid = false;
+    } else if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(email)) {
+      _emailError = 'Please enter a valid email address.';
+      valid = false;
+    }
+
+    if (password.isEmpty) {
+      _passwordError = 'Please enter your password.';
+      valid = false;
+    }
+
+    return valid;
+  }
+
+  Future<void> _resendVerification() async {
+    setState(() => _resendLoading = true);
+    try {
+      await _authService.sendEmailVerification();
+      if (mounted) _showSnackBar('Verification email resent. Please check your inbox.', success: true);
+    } catch (_) {
+      if (mounted) _showSnackBar('Could not resend verification email. Please try again.');
+    } finally {
+      if (mounted) setState(() => _resendLoading = false);
+    }
+  }
+
+  void _showSnackBar(String message, {bool success = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: success ? const Color(0xFF2E7D32) : const Color(0xFFC62828),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.all(16),
+      ),
+    );
+  }
 
   void _login() async {
-    String email = _emailController.text.trim();
-    String password = _passwordController.text;
+    setState(_clearErrors);
 
-    if (email.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill in all fields')),
-      );
+    if (!_validate()) {
+      setState(() {});
       return;
     }
 
     setState(() => _isLoading = true);
 
-    try {
-      final adminSnapshot =
-          await FirebaseFirestore.instance
-              .collection('admins')
-              .where('email', isEqualTo: email)
-              .where('password', isEqualTo: password)
-              .get();
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
 
-      if (adminSnapshot.docs.isNotEmpty) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Welcome Admin! Redirecting...'),
-              backgroundColor: Color(0xFF2E7D32),
-            ),
-          );
-          await Future.delayed(const Duration(milliseconds: 500));
-          setState(() => _isLoading = false);
-          Navigator.pushReplacementNamed(context, '/admin');
-        }
-        return;
-      }
-    } catch (e) {
-      debugPrint("Admin kontrol hatası: $e");
-    }
-
-
-    String? error = await _authService.checkCredentials(email, password);
+    final error = await _authService.checkCredentials(email, password);
 
     if (error != null) {
-      setState(() => _isLoading = false);
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(error)));
-      }
+      setState(() {
+        _isLoading = false;
+        if (error.toLowerCase().contains('password') || error.toLowerCase().contains('incorrect')) {
+          _passwordError = error;
+        } else {
+          _generalError = error;
+        }
+      });
       return;
     }
 
     try {
-      final userSnapshot =
-          await FirebaseFirestore.instance
-              .collection('users')
-              .where('email', isEqualTo: email)
-              .limit(1)
-              .get();
+      final uid = _authService.currentUserId();
+      if (uid == null) {
+        setState(() => _isLoading = false);
+        return;
+      }
 
-      if (userSnapshot.docs.isNotEmpty) {
-        String userId = userSnapshot.docs.first.id;
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
 
-        if (_authService.isEmailVerified()) {
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(userId)
-              .update({'isVerified': true});
-          setState(() => _isLoading = false);
-          if (mounted) {
-            Navigator.pushNamedAndRemoveUntil(
-              context,
-              '/home',
-              (route) => false,
-            );
-          }
-          return;
-        }
+      if (!userDoc.exists) {
+        await _authService.signOut();
+        setState(() {
+          _isLoading = false;
+          _generalError = 'Your account was not found. Please contact support.';
+        });
+        return;
+      }
 
-        try {
-          await _authService.sendEmailVerification();
-          setState(() => _isLoading = false);
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Verification email sent. Please verify and login again.'),
-                backgroundColor: Color(0xFF2E7D32),
-              ),
-            );
-            await Future.delayed(const Duration(seconds: 2));
-            Navigator.pushReplacementNamed(context, '/login');
-          }
-        } catch (e) {
-          setState(() => _isLoading = false);
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Error: ${e.toString()}')),
-            );
-          }
-        }
-      } else {
+      final role = userDoc.data()?['role'] ?? 'user';
+
+      if (role == 'admin') {
         setState(() => _isLoading = false);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('User record not found in database.')),
-          );
+          _showSnackBar('Welcome Admin! Redirecting...', success: true);
+          await Future.delayed(const Duration(milliseconds: 500));
+          Navigator.pushReplacementNamed(context, '/admin');
         }
+        return;
       }
-    } catch (e) {
-      setState(() => _isLoading = false);
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("System Error: $e")));
+
+      if (_authService.isEmailVerified()) {
+        await FirebaseFirestore.instance.collection('users').doc(uid).update({'isVerified': true});
+        setState(() => _isLoading = false);
+        if (mounted) Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+        return;
       }
+
+      try {
+        await _authService.sendEmailVerification();
+      } catch (_) {}
+
+      setState(() {
+        _isLoading = false;
+        _showVerificationBanner = true;
+      });
+    } catch (_) {
+      setState(() {
+        _isLoading = false;
+        _generalError = 'Something went wrong. Please try again.';
+      });
     }
   }
 
   Future<void> _socialLogin(String provider) async {
     setState(() => _isLoading = true);
 
-    String? error;
-
     try {
+      String? error;
       if (provider == 'Google') {
         error = await _authService.signInWithGoogle();
       } else if (provider == 'Apple') {
@@ -149,32 +168,24 @@ class _LoginPageState extends State<LoginPage> {
       }
 
       if (error == null && mounted) {
-        Navigator.pushNamedAndRemoveUntil(
-          context,
-          '/home',
-          (route) => false,
-        );
-      } else if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(error ?? 'Login failed'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
+        final uid = _authService.currentUserId();
+        if (uid != null) {
+          final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+          if (!doc.exists) {
+            await _authService.signOut();
+            setState(() {
+              _isLoading = false;
+              _generalError = 'Your account was not found. Please contact support.';
+            });
+            return;
+          }
+        }
+        Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+      } else if (mounted && error != null) {
+        _showSnackBar(error);
       }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('$provider login error: $e'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
-      }
+    } catch (_) {
+      if (mounted) _showSnackBar('Could not sign in with $provider. Please try again.');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -182,7 +193,6 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -203,29 +213,15 @@ class _LoginPageState extends State<LoginPage> {
                         child: Container(
                           height: 100,
                           width: 100,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFE8F5E9),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Center(
-                            child: Icon(
-                              Icons.qr_code_scanner_rounded,
-                              size: 50,
-                              color: Color(0xFF2E7D32),
-                            ),
-                          ),
+                          decoration: const BoxDecoration(color: Color(0xFFE8F5E9), shape: BoxShape.circle),
+                          child: const Icon(Icons.qr_code_scanner_rounded, size: 50, color: Color(0xFF2E7D32)),
                         ),
                       ),
                       const SizedBox(height: 30),
                       const Text(
                         'Welcome to ScanWiser!',
                         textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF1B5E20),
-                          letterSpacing: -0.5,
-                        ),
+                        style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Color(0xFF1B5E20), letterSpacing: -0.5),
                       ),
                       const SizedBox(height: 8),
                       Text(
@@ -239,33 +235,84 @@ class _LoginPageState extends State<LoginPage> {
                         _emailController,
                         'Email Address',
                         Icons.email_outlined,
+                        error: _emailError,
+                        keyboardType: TextInputType.emailAddress,
+                        onChanged: (_) {
+                          if (_emailError != null || _generalError != null) {
+                            setState(() { _emailError = null; _generalError = null; });
+                          }
+                        },
                       ),
                       const SizedBox(height: 16),
-                      _buildPasswordInput(),
+                      _buildPasswordInput(error: _passwordError),
+
+                      if (_generalError != null) ...[
+                        const SizedBox(height: 12),
+                        _buildErrorBox(_generalError!),
+                      ],
 
                       const SizedBox(height: 12),
                       Align(
                         alignment: Alignment.centerRight,
                         child: TextButton(
-                          onPressed:
-                              () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder:
-                                      (context) => const ForgotPasswordPage(),
-                                ),
-                              ),
-                          child: const Text(
-                            'Forgot Password?',
-                            style: TextStyle(
-                              color: Color(0xFF2E7D32),
-                              fontWeight: FontWeight.w600,
-                            ),
+                          onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const ForgotPasswordPage()),
                           ),
+                          child: const Text('Forgot Password?', style: TextStyle(color: Color(0xFF2E7D32), fontWeight: FontWeight.w600)),
                         ),
                       ),
 
                       const SizedBox(height: 20),
+
+                      if (_showVerificationBanner)
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 16),
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFF8E1),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: const Color(0xFFFFB300)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Row(
+                                children: [
+                                  Icon(Icons.mark_email_unread_outlined, color: Color(0xFFE65100), size: 20),
+                                  SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'Email address not verified',
+                                      style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFE65100), fontSize: 14),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              const Text(
+                                'A verification link has been sent to your email. Please click the link to verify your account, then try logging in again.',
+                                style: TextStyle(color: Color(0xFF5D4037), fontSize: 13),
+                              ),
+                              const SizedBox(height: 10),
+                              GestureDetector(
+                                onTap: _resendLoading ? null : _resendVerification,
+                                child: Row(
+                                  children: [
+                                    _resendLoading
+                                        ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF2E7D32)))
+                                        : const Icon(Icons.refresh, size: 16, color: Color(0xFF2E7D32)),
+                                    const SizedBox(width: 6),
+                                    const Text(
+                                      'Resend verification email',
+                                      style: TextStyle(color: Color(0xFF2E7D32), fontWeight: FontWeight.w600, fontSize: 13),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
 
                       ElevatedButton(
                         onPressed: _isLoading ? null : _login,
@@ -273,56 +320,24 @@ class _LoginPageState extends State<LoginPage> {
                           backgroundColor: const Color(0xFF2E7D32),
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 18),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                           elevation: 2,
                         ),
-                        child:
-                            _isLoading
-                                ? const SizedBox(
-                                  height: 24,
-                                  width: 24,
-                                  child: CircularProgressIndicator(
-                                    color: Colors.white,
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                                : const Text(
-                                  'Login',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
+                        child: _isLoading
+                            ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                            : const Text('Login', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                       ),
 
                       const SizedBox(height: 30),
 
                       Row(
                         children: [
-                          Expanded(
-                            child: Divider(
-                              color: Colors.grey[300],
-                              thickness: 1,
-                            ),
-                          ),
+                          Expanded(child: Divider(color: Colors.grey[300], thickness: 1)),
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: Text(
-                              "Or continue with",
-                              style: TextStyle(
-                                color: Colors.grey[600],
-                                fontSize: 14,
-                              ),
-                            ),
+                            child: Text("Or continue with", style: TextStyle(color: Colors.grey[600], fontSize: 14)),
                           ),
-                          Expanded(
-                            child: Divider(
-                              color: Colors.grey[300],
-                              thickness: 1,
-                            ),
-                          ),
+                          Expanded(child: Divider(color: Colors.grey[300], thickness: 1)),
                         ],
                       ),
 
@@ -331,17 +346,9 @@ class _LoginPageState extends State<LoginPage> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          _buildSocialButton(
-                            'assets/google.png',
-                            "Google",
-                            () => _socialLogin('Google'),
-                          ),
+                          _buildSocialButton('Google', Icons.g_mobiledata, Colors.red, () => _socialLogin('Google')),
                           const SizedBox(width: 20),
-                          _buildSocialButton(
-                            'assets/apple.png',
-                            "Apple",
-                            () => _socialLogin('Apple'),
-                          ),
+                          _buildSocialButton('Apple', Icons.apple, Colors.black, () => _socialLogin('Apple')),
                         ],
                       ),
 
@@ -350,24 +357,10 @@ class _LoginPageState extends State<LoginPage> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text(
-                            "Don't have an account? ",
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 15,
-                            ),
-                          ),
+                          Text("Don't have an account? ", style: TextStyle(color: Colors.grey[600], fontSize: 15)),
                           GestureDetector(
-                            onTap:
-                                () => Navigator.pushNamed(context, '/register'),
-                            child: const Text(
-                              'Sign Up',
-                              style: TextStyle(
-                                color: Color(0xFF2E7D32),
-                                fontWeight: FontWeight.bold,
-                                fontSize: 15,
-                              ),
-                            ),
+                            onTap: () => Navigator.pushNamed(context, '/register'),
+                            child: const Text('Sign Up', style: TextStyle(color: Color(0xFF2E7D32), fontWeight: FontWeight.bold, fontSize: 15)),
                           ),
                         ],
                       ),
@@ -386,67 +379,108 @@ class _LoginPageState extends State<LoginPage> {
   Widget _buildInput(
     TextEditingController controller,
     String label,
-    IconData icon,
-  ) {
-    return TextField(
-      controller: controller,
-      decoration: InputDecoration(
-        labelText: label,
-        filled: true,
-        fillColor: const Color(0xFFF5F5F5),
-        prefixIcon: Icon(icon, color: Colors.grey),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide.none,
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: Color(0xFF2E7D32), width: 1.5),
-        ),
-        contentPadding: const EdgeInsets.symmetric(vertical: 20),
-      ),
-    );
-  }
-
-  Widget _buildPasswordInput() {
-    return TextField(
-      controller: _passwordController,
-      obscureText: _isObscure,
-      decoration: InputDecoration(
-        labelText: 'Password',
-        filled: true,
-        fillColor: const Color(0xFFF5F5F5),
-        prefixIcon: const Icon(Icons.lock_outline, color: Colors.grey),
-        suffixIcon: IconButton(
-          icon: Icon(
-            _isObscure
-                ? Icons.visibility_off_outlined
-                : Icons.visibility_outlined,
-            color: Colors.grey,
+    IconData icon, {
+    String? error,
+    TextInputType? keyboardType,
+    ValueChanged<String>? onChanged,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
+          controller: controller,
+          keyboardType: keyboardType,
+          onChanged: onChanged,
+          decoration: InputDecoration(
+            labelText: label,
+            filled: true,
+            fillColor: error != null ? const Color(0xFFFFF3F3) : const Color(0xFFF5F5F5),
+            prefixIcon: Icon(icon, color: error != null ? const Color(0xFFC62828) : Colors.grey),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide(color: error != null ? const Color(0xFFC62828) : const Color(0xFF2E7D32), width: 1.5),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: error != null ? const BorderSide(color: Color(0xFFEF9A9A), width: 1) : BorderSide.none,
+            ),
+            contentPadding: const EdgeInsets.symmetric(vertical: 20),
           ),
-          onPressed: () => setState(() => _isObscure = !_isObscure),
         ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide.none,
+        if (error != null) _buildFieldError(error),
+      ],
+    );
+  }
+
+  Widget _buildPasswordInput({String? error}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
+          controller: _passwordController,
+          obscureText: _isObscure,
+          onChanged: (_) {
+            if (_passwordError != null) setState(() => _passwordError = null);
+          },
+          decoration: InputDecoration(
+            labelText: 'Password',
+            filled: true,
+            fillColor: error != null ? const Color(0xFFFFF3F3) : const Color(0xFFF5F5F5),
+            prefixIcon: Icon(Icons.lock_outline, color: error != null ? const Color(0xFFC62828) : Colors.grey),
+            suffixIcon: IconButton(
+              icon: Icon(_isObscure ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: Colors.grey),
+              onPressed: () => setState(() => _isObscure = !_isObscure),
+            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide(color: error != null ? const Color(0xFFC62828) : const Color(0xFF2E7D32), width: 1.5),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: error != null ? const BorderSide(color: Color(0xFFEF9A9A), width: 1) : BorderSide.none,
+            ),
+            contentPadding: const EdgeInsets.symmetric(vertical: 20),
+          ),
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: Color(0xFF2E7D32), width: 1.5),
-        ),
-        contentPadding: const EdgeInsets.symmetric(vertical: 20),
+        if (error != null) _buildFieldError(error),
+      ],
+    );
+  }
+
+  Widget _buildFieldError(String message) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 6, left: 4),
+      child: Row(
+        children: [
+          const Icon(Icons.error_outline, size: 14, color: Color(0xFFC62828)),
+          const SizedBox(width: 4),
+          Text(message, style: const TextStyle(color: Color(0xFFC62828), fontSize: 12)),
+        ],
       ),
     );
   }
 
-  Widget _buildSocialButton(
-    String assetPath,
-    String label,
-    VoidCallback onTap,
-  ) {
-    IconData icon = label == "Google" ? Icons.g_mobiledata : Icons.apple;
-    Color color = label == "Google" ? Colors.red : Colors.black;
+  Widget _buildErrorBox(String message) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFEBEE),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFEF9A9A)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.error_outline_rounded, size: 18, color: Color(0xFFC62828)),
+          const SizedBox(width: 8),
+          Expanded(child: Text(message, style: const TextStyle(color: Color(0xFFC62828), fontSize: 13))),
+        ],
+      ),
+    );
+  }
 
+  Widget _buildSocialButton(String label, IconData icon, Color color, VoidCallback onTap) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
@@ -461,10 +495,7 @@ class _LoginPageState extends State<LoginPage> {
           children: [
             Icon(icon, color: color, size: 28),
             const SizedBox(width: 8),
-            Text(
-              label,
-              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
-            ),
+            Text(label, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
           ],
         ),
       ),

@@ -1,6 +1,10 @@
+// ignore: file_names
+
+// ignore_for_file: duplicate_ignore, file_names
 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import '../../services/market_api_service.dart';
@@ -363,7 +367,28 @@ class _StatCard extends StatelessWidget {
   }
 }
 
-class _RecentScans extends StatelessWidget {
+class _RecentScans extends StatefulWidget {
+  @override
+  State<_RecentScans> createState() => _RecentScansState();
+}
+
+class _RecentScansState extends State<_RecentScans> {
+  final Map<String, String> _nameCache = {};
+
+  Future<String> _getFullName(String? userId, String? fallbackEmail) async {
+    if (userId == null || userId.isEmpty) return fallbackEmail?.split('@').first ?? 'Unknown';
+    if (_nameCache.containsKey(userId)) return _nameCache[userId]!;
+    try {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
+      final name = doc.data()?['fullName']?.toString() ?? '';
+      final result = name.isNotEmpty ? name : (fallbackEmail?.split('@').first ?? 'Unknown');
+      _nameCache[userId] = result;
+      return result;
+    } catch (_) {
+      return fallbackEmail?.split('@').first ?? 'Unknown';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -391,63 +416,59 @@ class _RecentScans extends StatelessWidget {
                     .limit(8)
                     .snapshots(),
             builder: (_, snap) {
-              if (!snap.hasData)
+              if (!snap.hasData) {
                 return const Center(
                   child: CircularProgressIndicator(color: Color(0xFF2E7D32)),
                 );
-              if (snap.data!.docs.isEmpty)
+              }
+              if (snap.data!.docs.isEmpty) {
                 return Text(
                   'No scans yet.',
                   style: GoogleFonts.poppins(color: Colors.grey),
                 );
+              }
               return Column(
-                children:
-                    snap.data!.docs.map((d) {
-                      final data = d.data() as Map<String, dynamic>;
+                children: snap.data!.docs.map((d) {
+                  final data = d.data() as Map<String, dynamic>;
+                  final imageUrl = data['imageUrl']?.toString() ?? '';
+                  final userId = data['userId']?.toString();
+                  final email = data['userEmail']?.toString();
+                  return FutureBuilder<String>(
+                    future: _getFullName(userId, email),
+                    builder: (_, nameSnap) {
+                      final name = nameSnap.data ?? email?.split('@').first ?? 'Unknown';
                       return ListTile(
                         contentPadding: EdgeInsets.zero,
-                        leading: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFE8F5E9),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Icon(
-                            Icons.qr_code_rounded,
-                            color: Color(0xFF2E7D32),
-                            size: 18,
-                          ),
+                        leading: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: imageUrl.isNotEmpty
+                              ? Image.network(
+                                  imageUrl,
+                                  width: 40,
+                                  height: 40,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => _fallbackIcon(),
+                                )
+                              : _fallbackIcon(),
                         ),
                         title: Text(
-                          data['productName']?.toString() ??
-                              data['barcode']?.toString() ??
-                              '',
-                          style: GoogleFonts.poppins(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 13,
-                          ),
+                          data['productName']?.toString() ?? data['barcode']?.toString() ?? '',
+                          style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 13),
                         ),
                         subtitle: Text(
-                          '${data['userEmail'] ?? ''} · ${data['city'] ?? ''}',
-                          style: GoogleFonts.poppins(
-                            fontSize: 11,
-                            color: Colors.grey,
-                          ),
+                          '$name · ${data['city'] ?? ''}',
+                          style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey),
                         ),
-                        trailing:
-                            data['timestamp'] != null
-                                ? Text(
-                                  _formatDate(
-                                    (data['timestamp'] as Timestamp).toDate(),
-                                  ),
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 10,
-                                    color: Colors.grey,
-                                  ),
-                                )
-                                : null,
+                        trailing: data['timestamp'] != null
+                            ? Text(
+                                _formatDate((data['timestamp'] as Timestamp).toDate()),
+                                style: GoogleFonts.poppins(fontSize: 10, color: Colors.grey),
+                              )
+                            : null,
                       );
-                    }).toList(),
+                    },
+                  );
+                }).toList(),
               );
             },
           ),
@@ -455,6 +476,13 @@ class _RecentScans extends StatelessWidget {
       ),
     );
   }
+
+  Widget _fallbackIcon() => Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(color: const Color(0xFFE8F5E9), borderRadius: BorderRadius.circular(8)),
+        child: const Icon(Icons.qr_code_rounded, color: Color(0xFF2E7D32), size: 18),
+      );
 
   String _formatDate(DateTime d) =>
       '${d.day}/${d.month} ${d.hour}:${d.minute.toString().padLeft(2, '0')}';
@@ -488,15 +516,17 @@ class _RecentUsers extends StatelessWidget {
                     .limit(6)
                     .snapshots(),
             builder: (_, snap) {
-              if (!snap.hasData)
+              if (!snap.hasData) {
                 return const Center(
                   child: CircularProgressIndicator(color: Color(0xFF2E7D32)),
                 );
-              if (snap.data!.docs.isEmpty)
+              }
+              if (snap.data!.docs.isEmpty) {
                 return Text(
                   'No users yet.',
                   style: GoogleFonts.poppins(color: Colors.grey),
                 );
+              }
               return Column(
                 children:
                     snap.data!.docs.map((d) {
@@ -574,8 +604,21 @@ class _Users extends StatelessWidget {
             ],
           ),
     );
-    if (ok == true)
+    if (ok == true) {
+      try {
+        final callable = FirebaseFunctions.instance.httpsCallable('deleteUser');
+        await callable.call({'uid': uid});
+      } catch (_) {}
       await FirebaseFirestore.instance.collection('users').doc(uid).delete();
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('$name deleted.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -600,15 +643,17 @@ class _Users extends StatelessWidget {
           StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance.collection('users').snapshots(),
             builder: (_, snap) {
-              if (!snap.hasData)
+              if (!snap.hasData) {
                 return const Center(
                   child: CircularProgressIndicator(color: Color(0xFF2E7D32)),
                 );
-              if (snap.data!.docs.isEmpty)
+              }
+              if (snap.data!.docs.isEmpty) {
                 return Text(
                   'No users yet.',
                   style: GoogleFonts.poppins(color: Colors.grey),
                 );
+              }
               return ListView.separated(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
@@ -690,81 +735,98 @@ class _OrdersState extends State<_Orders> {
     final reasonCtrl = TextEditingController();
     final ok = await showDialog<bool>(
       context: context,
-      builder:
-          (c) => AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            title: Text(
-              'Cancel Order',
-              style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '$productName at $marketName',
-                  style: GoogleFonts.poppins(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
+      builder: (c) => StatefulBuilder(
+        builder: (c, setStateDialog) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text('Cancel Order', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '$productName at $marketName',
+                style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 13),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: reasonCtrl,
+                onChanged: (_) => setStateDialog(() {}),
+                decoration: InputDecoration(
+                  labelText: 'Reason for cancellation',
+                  hintText: 'Please enter a reason...',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                ),
+                maxLines: 3,
+              ),
+              if (reasonCtrl.text.trim().isEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    'You must enter a reason to confirm cancellation.',
+                    style: GoogleFonts.poppins(fontSize: 11, color: Colors.red[400]),
                   ),
                 ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: reasonCtrl,
-                  decoration: InputDecoration(
-                    labelText: 'Reason for cancellation',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                  ),
-                  maxLines: 3,
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(c, false),
-                child: Text('Abort', style: GoogleFonts.poppins()),
-              ),
-              TextButton(
-                onPressed:
-                    () => Navigator.pop(c, reasonCtrl.text.trim().isNotEmpty),
-                child: Text(
-                  'Confirm',
-                  style: GoogleFonts.poppins(color: Colors.red),
-                ),
-              ),
             ],
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(c, false),
+              child: Text('Abort', style: GoogleFonts.poppins()),
+            ),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              decoration: BoxDecoration(
+                color: reasonCtrl.text.trim().isNotEmpty ? Colors.red : Colors.grey[300],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: TextButton(
+                onPressed: reasonCtrl.text.trim().isNotEmpty
+                    ? () => Navigator.pop(c, true)
+                    : null,
+                child: Text(
+                  'Confirm',
+                  style: GoogleFonts.poppins(
+                    color: reasonCtrl.text.trim().isNotEmpty ? Colors.white : Colors.grey[500],
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
 
     if (ok == true && reasonCtrl.text.trim().isNotEmpty) {
+      final reason = reasonCtrl.text.trim();
       await FirebaseFirestore.instance
           .collection('purchases')
           .doc(purchaseId)
           .update({
             'orderStatus': 'cancelled',
-            'cancellationReason': reasonCtrl.text.trim(),
+            'cancellationReason': reason,
             'cancelledAt': FieldValue.serverTimestamp(),
           });
+      await FirebaseFirestore.instance.collection('cancellationLogs').add({
+        'orderId': purchaseId,
+        'userId': userId,
+        'userEmail': '',
+        'productName': productName,
+        'marketName': marketName,
+        'reason': reason,
+        'cancelledAt': FieldValue.serverTimestamp(),
+        'cancelledBy': 'admin',
+      });
       await NotificationService.sendOrderCancelledNotification(
         userId: userId,
         productName: productName,
         marketName: marketName,
-        reason: reasonCtrl.text.trim(),
+        reason: reason,
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Order cancelled'),
-            backgroundColor: Colors.red,
-          ),
+          const SnackBar(content: Text('Order cancelled'), backgroundColor: Colors.red),
         );
       }
     }
@@ -798,15 +860,17 @@ class _OrdersState extends State<_Orders> {
             stream:
                 FirebaseFirestore.instance.collection('purchases').snapshots(),
             builder: (_, snap) {
-              if (!snap.hasData)
+              if (!snap.hasData) {
                 return const Center(
                   child: CircularProgressIndicator(color: Color(0xFF2E7D32)),
                 );
-              if (snap.data!.docs.isEmpty)
+              }
+              if (snap.data!.docs.isEmpty) {
                 return Text(
                   'No orders yet.',
                   style: GoogleFonts.poppins(color: Colors.grey),
                 );
+              }
               final sortedDocs =
                   snap.data!.docs.toList()..sort((a, b) {
                     final aTime = (a.data() as Map)['timestamp'] as Timestamp?;
@@ -943,8 +1007,31 @@ class _OrdersState extends State<_Orders> {
   }
 }
 
-class _ScanLogs extends StatelessWidget {
+class _ScanLogs extends StatefulWidget {
   const _ScanLogs();
+
+  @override
+  State<_ScanLogs> createState() => _ScanLogsState();
+}
+
+class _ScanLogsState extends State<_ScanLogs> {
+  final Map<String, String> _nameCache = {};
+
+  Future<String> _getFullName(String? userId, String? fallbackEmail) async {
+    if (userId == null || userId.isEmpty) {
+      return fallbackEmail?.split('@').first ?? 'Unknown';
+    }
+    if (_nameCache.containsKey(userId)) return _nameCache[userId]!;
+    try {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
+      final name = doc.data()?['fullName']?.toString() ?? '';
+      final result = name.isNotEmpty ? name : (fallbackEmail?.split('@').first ?? 'Unknown');
+      _nameCache[userId] = result;
+      return result;
+    } catch (_) {
+      return fallbackEmail?.split('@').first ?? 'Unknown';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -957,84 +1044,64 @@ class _ScanLogs extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Scan Logs',
-            style: GoogleFonts.poppins(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          Text(
-            'All product scans by users',
-            style: GoogleFonts.poppins(color: Colors.grey[500], fontSize: 13),
-          ),
+          Text('Scan Logs', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold)),
+          Text('All product scans by users', style: GoogleFonts.poppins(color: Colors.grey[500], fontSize: 13)),
           const SizedBox(height: 20),
           StreamBuilder<QuerySnapshot>(
-            stream:
-                FirebaseFirestore.instance
-                    .collection('scanLogs')
-                    .orderBy('timestamp', descending: true)
-                    .snapshots(),
+            stream: FirebaseFirestore.instance
+                .collection('scanLogs')
+                .orderBy('timestamp', descending: true)
+                .snapshots(),
             builder: (_, snap) {
-              if (!snap.hasData)
-                return const Center(
-                  child: CircularProgressIndicator(color: Color(0xFF2E7D32)),
-                );
-              if (snap.data!.docs.isEmpty)
-                return Text(
-                  'No scan logs yet.',
-                  style: GoogleFonts.poppins(color: Colors.grey),
-                );
+              if (!snap.hasData) {
+                return const Center(child: CircularProgressIndicator(color: Color(0xFF2E7D32)));
+              }
+              if (snap.data!.docs.isEmpty) {
+                return Text('No scan logs yet.', style: GoogleFonts.poppins(color: Colors.grey));
+              }
               return ListView.separated(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: snap.data!.docs.length,
                 separatorBuilder: (_, __) => const Divider(height: 1),
                 itemBuilder: (context, i) {
-                  final data =
-                      snap.data!.docs[i].data() as Map<String, dynamic>;
+                  final data = snap.data!.docs[i].data() as Map<String, dynamic>;
                   final ts = data['timestamp'] as Timestamp?;
-                  return ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFE8F5E9),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(
-                        Icons.qr_code_rounded,
-                        color: Color(0xFF2E7D32),
-                        size: 20,
-                      ),
-                    ),
-                    title: Text(
-                      data['productName']?.toString() ??
-                          data['barcode']?.toString() ??
-                          '',
-                      style: GoogleFonts.poppins(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                    ),
-                    subtitle: Text(
-                      '${data['userEmail'] ?? 'Unknown'} · ${data['city'] ?? ''} · Barcode: ${data['barcode'] ?? ''}',
-                      style: GoogleFonts.poppins(
-                        fontSize: 11,
-                        color: Colors.grey,
-                      ),
-                    ),
-                    trailing:
-                        ts != null
-                            ? Text(
-                              _fmt(ts.toDate()),
-                              style: GoogleFonts.poppins(
-                                fontSize: 11,
-                                color: Colors.grey,
-                              ),
-                            )
+                  final imageUrl = data['imageUrl']?.toString() ?? '';
+                  final userId = data['userId']?.toString();
+                  final email = data['userEmail']?.toString();
+                  return FutureBuilder<String>(
+                    future: _getFullName(userId, email),
+                    builder: (_, nameSnap) {
+                      final name = nameSnap.data ?? email?.split('@').first ?? 'Unknown';
+                      return ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: imageUrl.isNotEmpty
+                              ? Image.network(
+                                  imageUrl,
+                                  width: 48,
+                                  height: 48,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => _fallbackIcon(),
+                                )
+                              : _fallbackIcon(),
+                        ),
+                        title: Text(
+                          data['productName']?.toString() ?? data['barcode']?.toString() ?? '',
+                          style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 14),
+                        ),
+                        subtitle: Text(
+                          '$name · ${data['city'] ?? ''} · Barcode: ${data['barcode'] ?? ''}',
+                          style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey),
+                        ),
+                        trailing: ts != null
+                            ? Text(_fmt(ts.toDate()), style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey))
                             : null,
-                    isThreeLine: true,
+                        isThreeLine: true,
+                      );
+                    },
                   );
                 },
               );
@@ -1044,6 +1111,13 @@ class _ScanLogs extends StatelessWidget {
       ),
     );
   }
+
+  Widget _fallbackIcon() => Container(
+        width: 48,
+        height: 48,
+        decoration: BoxDecoration(color: const Color(0xFFE8F5E9), borderRadius: BorderRadius.circular(10)),
+        child: const Icon(Icons.qr_code_rounded, color: Color(0xFF2E7D32), size: 22),
+      );
 
   String _fmt(DateTime d) =>
       '${d.day}/${d.month}/${d.year} ${d.hour}:${d.minute.toString().padLeft(2, '0')}';
@@ -1059,16 +1133,24 @@ class _CancellationLogs extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.white,
         centerTitle: true,
-        title: Text('Cancellation Logs', style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 18)),
+        title: Text(
+          'Cancellation Logs',
+          style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 18),
+        ),
         elevation: 0,
       ),
       body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('cancellationLogs')
-            .orderBy('cancelledAt', descending: true)
-            .snapshots(),
+        stream:
+            FirebaseFirestore.instance
+                .collection('cancellationLogs')
+                .orderBy('cancelledAt', descending: true)
+                .snapshots(),
         builder: (_, snap) {
-          if (!snap.hasData) return const Center(child: CircularProgressIndicator(color: Color(0xFF2E7D32)));
+          if (!snap.hasData) {
+            return const Center(
+              child: CircularProgressIndicator(color: Color(0xFF2E7D32)),
+            );
+          }
           if (snap.data!.docs.isEmpty) {
             return Center(
               child: Column(
@@ -1076,7 +1158,13 @@ class _CancellationLogs extends StatelessWidget {
                 children: [
                   const Icon(Icons.info_outline, size: 72, color: Colors.grey),
                   const SizedBox(height: 16),
-                  Text('No cancellations', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600)),
+                  Text(
+                    'No cancellations',
+                    style: GoogleFonts.poppins(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ],
               ),
             );
@@ -1096,7 +1184,12 @@ class _CancellationLogs extends StatelessWidget {
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: Colors.red[100]!),
-                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8)],
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.04),
+                      blurRadius: 8,
+                    ),
+                  ],
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1108,39 +1201,101 @@ class _CancellationLogs extends StatelessWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Order ID', style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey[600], fontWeight: FontWeight.w500)),
-                              Text(log['orderId'] ?? '', style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.red[700])),
+                              Text(
+                                'Order ID',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 11,
+                                  color: Colors.grey[600],
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              Text(
+                                log['orderId'] ?? '',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.red[700],
+                                ),
+                              ),
                             ],
                           ),
                         ),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.red[50],
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(color: Colors.red[200]!),
                           ),
-                          child: Text('Cancelled', style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.red[700])),
+                          child: Text(
+                            'Cancelled',
+                            style: GoogleFonts.poppins(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.red[700],
+                            ),
+                          ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 12),
+                    if ((log['productName'] ?? '').toString().isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.shopping_bag_outlined, size: 14, color: Colors.grey),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                '${log['productName']} — ${log['marketName'] ?? ''}',
+                                style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('User Email', style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey[600], fontWeight: FontWeight.w500)),
-                            Text(log['userEmail'] ?? 'N/A', style: GoogleFonts.poppins(fontSize: 12)),
+                            Text(
+                              'User Email',
+                              style: GoogleFonts.poppins(
+                                fontSize: 11,
+                                color: Colors.grey[600],
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            Text(
+                              log['userEmail'] ?? 'N/A',
+                              style: GoogleFonts.poppins(fontSize: 12),
+                            ),
                           ],
                         ),
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            Text('Date', style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey[600], fontWeight: FontWeight.w500)),
-                            Text('${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}',
-                                style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[700])),
+                            Text(
+                              'Date',
+                              style: GoogleFonts.poppins(
+                                fontSize: 11,
+                                color: Colors.grey[600],
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            Text(
+                              '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}',
+                              style: GoogleFonts.poppins(
+                                fontSize: 12,
+                                color: Colors.grey[700],
+                              ),
+                            ),
                           ],
                         ),
                       ],
@@ -1157,9 +1312,23 @@ class _CancellationLogs extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Cancellation Reason', style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey[600], fontWeight: FontWeight.w500)),
+                          Text(
+                            'Cancellation Reason',
+                            style: GoogleFonts.poppins(
+                              fontSize: 11,
+                              color: Colors.grey[600],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
                           const SizedBox(height: 6),
-                          Text(log['reason'] ?? 'No reason provided', style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[800], height: 1.4)),
+                          Text(
+                            log['reason'] ?? 'No reason provided',
+                            style: GoogleFonts.poppins(
+                              fontSize: 12,
+                              color: Colors.grey[800],
+                              height: 1.4,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -1547,30 +1716,108 @@ class _NotificationsState extends State<_Notifications> {
   final _titleCtrl = TextEditingController();
   final _bodyCtrl = TextEditingController();
   bool _isSending = false;
+  bool _sendToAll = true;
+  List<Map<String, dynamic>> _users = [];
+  List<Map<String, dynamic>> _filteredUsers = [];
+  String? _selectedUserId;
+  String? _selectedUserEmail;
+  final _userSearchCtrl = TextEditingController();
+  bool _showUserList = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUsers();
+  }
 
   @override
   void dispose() {
     _titleCtrl.dispose();
     _bodyCtrl.dispose();
+    _userSearchCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadUsers() async {
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('users')
+          .where('role', isEqualTo: 'user')
+          .get();
+      setState(() {
+        _users = snap.docs.map((d) => {'uid': d.id, ...d.data()}).toList();
+        _filteredUsers = _users;
+      });
+    } catch (_) {}
+  }
+
+  void _filterUsers(String query) {
+    setState(() {
+      _showUserList = query.isNotEmpty;
+      if (query.isEmpty) {
+        _filteredUsers = _users;
+      } else {
+        final q = query.toLowerCase();
+        _filteredUsers = _users.where((u) {
+          final name = (u['fullName'] ?? '').toString().toLowerCase();
+          final email = (u['email'] ?? '').toString().toLowerCase();
+          return name.contains(q) || email.contains(q);
+        }).toList();
+      }
+    });
   }
 
   Future<void> _send() async {
     if (_titleCtrl.text.trim().isEmpty || _bodyCtrl.text.trim().isEmpty) return;
+    if (!_sendToAll && _selectedUserId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a user')),
+      );
+      return;
+    }
     setState(() => _isSending = true);
     try {
-      await FirebaseFirestore.instance.collection('notifications').add({
-        'title': _titleCtrl.text.trim(),
-        'body': _bodyCtrl.text.trim(),
-        'createdAt': FieldValue.serverTimestamp(),
-        'sentBy': 'admin',
-      });
+      final title = _titleCtrl.text.trim();
+      final body = _bodyCtrl.text.trim();
+
+      if (_sendToAll) {
+        final usersSnap = await FirebaseFirestore.instance
+            .collection('users')
+            .where('role', isEqualTo: 'user')
+            .get();
+        final batch = FirebaseFirestore.instance.batch();
+        for (final doc in usersSnap.docs) {
+          final ref = FirebaseFirestore.instance.collection('notifications').doc();
+          batch.set(ref, {
+            'userId': doc.id,
+            'title': title,
+            'body': body,
+            'type': 'admin_broadcast',
+            'read': false,
+            'createdAt': FieldValue.serverTimestamp(),
+            'sentBy': 'admin',
+          });
+        }
+        await batch.commit();
+      } else {
+        await FirebaseFirestore.instance.collection('notifications').add({
+          'userId': _selectedUserId,
+          'title': title,
+          'body': body,
+          'type': 'admin_broadcast',
+          'read': false,
+          'createdAt': FieldValue.serverTimestamp(),
+          'sentBy': 'admin',
+        });
+      }
+
       _titleCtrl.clear();
       _bodyCtrl.clear();
+      setState(() => _selectedUserId = null);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Notification sent'),
+          SnackBar(
+            content: Text(_sendToAll ? 'Notification sent to all users' : 'Notification sent to $_selectedUserEmail'),
             backgroundColor: Colors.green,
           ),
         );
@@ -1596,24 +1843,169 @@ class _NotificationsState extends State<_Notifications> {
             children: [
               Text(
                 'Send Notification',
-                style: GoogleFonts.poppins(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => setState(() { _sendToAll = true; _selectedUserId = null; }),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        decoration: BoxDecoration(
+                          color: _sendToAll ? const Color(0xFF2E7D32) : Colors.grey[100],
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: _sendToAll ? const Color(0xFF2E7D32) : Colors.grey[300]!),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.group_rounded, size: 18, color: _sendToAll ? Colors.white : Colors.grey),
+                            const SizedBox(width: 6),
+                            Text('All Users', style: GoogleFonts.poppins(color: _sendToAll ? Colors.white : Colors.grey[700], fontWeight: FontWeight.w600)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => setState(() => _sendToAll = false),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        decoration: BoxDecoration(
+                          color: !_sendToAll ? const Color(0xFF2E7D32) : Colors.grey[100],
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: !_sendToAll ? const Color(0xFF2E7D32) : Colors.grey[300]!),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.person_rounded, size: 18, color: !_sendToAll ? Colors.white : Colors.grey),
+                            const SizedBox(width: 6),
+                            Text('Select User', style: GoogleFonts.poppins(color: !_sendToAll ? Colors.white : Colors.grey[700], fontWeight: FontWeight.w600)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              if (!_sendToAll) ...[
+                const SizedBox(height: 14),
+                if (_selectedUserId != null)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE8F5E9),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFF2E7D32)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.person_rounded, size: 18, color: Color(0xFF2E7D32)),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _users.firstWhere((u) => u['uid'] == _selectedUserId, orElse: () => {})['fullName']?.toString() ?? '',
+                                style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 13),
+                              ),
+                              Text(
+                                _selectedUserEmail ?? '',
+                                style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600]),
+                              ),
+                            ],
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () => setState(() {
+                            _selectedUserId = null;
+                            _selectedUserEmail = null;
+                            _userSearchCtrl.clear();
+                            _showUserList = false;
+                          }),
+                          child: const Icon(Icons.close, size: 18, color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  ),
+                TextField(
+                  controller: _userSearchCtrl,
+                  onChanged: _filterUsers,
+                  decoration: InputDecoration(
+                    labelText: 'Search by name or email',
+                    prefixIcon: const Icon(Icons.search, size: 20),
+                    suffixIcon: _userSearchCtrl.text.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear, size: 18),
+                            onPressed: () {
+                              _userSearchCtrl.clear();
+                              _filterUsers('');
+                            },
+                          )
+                        : null,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                  ),
+                ),
+                if (_showUserList && _filteredUsers.isNotEmpty)
+                  Container(
+                    margin: const EdgeInsets.only(top: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey[300]!),
+                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 8)],
+                    ),
+                    constraints: const BoxConstraints(maxHeight: 200),
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: _filteredUsers.length,
+                      separatorBuilder: (_, __) => Divider(height: 1, color: Colors.grey[200]),
+                      itemBuilder: (_, i) {
+                        final u = _filteredUsers[i];
+                        return ListTile(
+                          dense: true,
+                          leading: CircleAvatar(
+                            radius: 16,
+                            backgroundColor: const Color(0xFFE8F5E9),
+                            child: Text(
+                              (u['fullName']?.toString() ?? 'U')[0].toUpperCase(),
+                              style: const TextStyle(color: Color(0xFF2E7D32), fontSize: 12, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          title: Text(u['fullName']?.toString() ?? '', style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600)),
+                          subtitle: Text(u['email']?.toString() ?? '', style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey[600])),
+                          onTap: () => setState(() {
+                            _selectedUserId = u['uid']?.toString();
+                            _selectedUserEmail = u['email']?.toString();
+                            _userSearchCtrl.clear();
+                            _showUserList = false;
+                          }),
+                        );
+                      },
+                    ),
+                  ),
+                if (_showUserList && _filteredUsers.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text('No users found', style: GoogleFonts.poppins(color: Colors.grey, fontSize: 13)),
+                  ),
+              ],
+              const SizedBox(height: 14),
               TextField(
                 controller: _titleCtrl,
                 decoration: InputDecoration(
                   labelText: 'Title',
                   prefixIcon: const Icon(Icons.title_rounded, size: 20),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 14,
-                  ),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                 ),
               ),
               const SizedBox(height: 14),
@@ -1626,32 +2018,19 @@ class _NotificationsState extends State<_Notifications> {
                     padding: EdgeInsets.only(bottom: 56),
                     child: Icon(Icons.message_outlined, size: 20),
                   ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 14,
-                  ),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                 ),
               ),
               const SizedBox(height: 16),
               SizedBox(
-                width: 220,
+                width: double.infinity,
                 child: ElevatedButton.icon(
-                  icon:
-                      _isSending
-                          ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                          : const Icon(Icons.send_rounded, size: 18),
+                  icon: _isSending
+                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Icon(Icons.send_rounded, size: 18),
                   label: Text(
-                    'Send to All Users',
+                    _sendToAll ? 'Send to All Users' : 'Send to Selected User',
                     style: GoogleFonts.poppins(),
                   ),
                   onPressed: _isSending ? null : _send,
@@ -1659,9 +2038,7 @@ class _NotificationsState extends State<_Notifications> {
                     backgroundColor: const Color(0xFF2E7D32),
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
               ),
@@ -1693,17 +2070,19 @@ class _NotificationsState extends State<_Notifications> {
                         .orderBy('createdAt', descending: true)
                         .snapshots(),
                 builder: (_, snap) {
-                  if (!snap.hasData)
+                  if (!snap.hasData) {
                     return const Center(
                       child: CircularProgressIndicator(
                         color: Color(0xFF2E7D32),
                       ),
                     );
-                  if (snap.data!.docs.isEmpty)
+                  }
+                  if (snap.data!.docs.isEmpty) {
                     return Text(
                       'No notifications sent yet.',
                       style: GoogleFonts.poppins(color: Colors.grey),
                     );
+                  }
                   return ListView.separated(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),

@@ -1,3 +1,4 @@
+// ignore_for_file: file_names
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -30,10 +31,11 @@ class _ProfilePageState extends State<ProfilePage> {
     _currentUser = FirebaseAuth.instance.currentUser;
     if (_currentUser != null) {
       try {
-        final doc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(_currentUser!.uid)
-            .get();
+        final doc =
+            await FirebaseFirestore.instance
+                .collection('users')
+                .doc(_currentUser!.uid)
+                .get();
         if (doc.exists && mounted) {
           setState(() {
             _userData = doc.data() as Map<String, dynamic>;
@@ -58,24 +60,36 @@ class _ProfilePageState extends State<ProfilePage> {
   Future<void> _deleteAccount() async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text('Delete Account', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
-        content: Text(
-          'This will permanently delete your profile and authentication account. This action cannot be undone.',
-          style: GoogleFonts.poppins(fontSize: 14),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Cancel', style: GoogleFonts.poppins()),
+      builder:
+          (ctx) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            title: Text(
+              'Delete Account',
+              style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+            ),
+            content: Text(
+              'This will permanently delete your profile and authentication account. This action cannot be undone.',
+              style: GoogleFonts.poppins(fontSize: 14),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text('Cancel', style: GoogleFonts.poppins()),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: Text(
+                  'Delete Everything',
+                  style: GoogleFonts.poppins(
+                    color: Colors.red,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text('Delete Everything', style: GoogleFonts.poppins(color: Colors.red, fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
     );
     if (confirm != true) return;
     if (!mounted) return;
@@ -83,20 +97,31 @@ class _ProfilePageState extends State<ProfilePage> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => const Center(child: CircularProgressIndicator(color: _green)),
+      builder:
+          (_) => const Center(child: CircularProgressIndicator(color: _green)),
     );
 
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
-        await FirebaseFirestore.instance.collection('users').doc(user.uid).delete();
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .delete();
         await user.delete();
         if (mounted) {
           Navigator.of(context, rootNavigator: true).pop();
-          Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            '/login',
+            (route) => false,
+          );
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Account permanently deleted.', style: GoogleFonts.poppins()),
+              content: Text(
+                'Account permanently deleted.',
+                style: GoogleFonts.poppins(),
+              ),
               backgroundColor: Colors.black87,
             ),
           );
@@ -107,18 +132,28 @@ class _ProfilePageState extends State<ProfilePage> {
       if (e.code == 'requires-recent-login') {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Please log out and log back in to delete your account.', style: GoogleFonts.poppins()),
+            content: Text(
+              'Please log out and log back in to delete your account.',
+              style: GoogleFonts.poppins(),
+            ),
           ),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.message}', style: GoogleFonts.poppins())),
+          SnackBar(
+            content: Text('Error: ${e.message}', style: GoogleFonts.poppins()),
+          ),
         );
       }
     } catch (_) {
       if (mounted) Navigator.of(context, rootNavigator: true).pop();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('An unexpected error occurred.', style: GoogleFonts.poppins())),
+        SnackBar(
+          content: Text(
+            'An unexpected error occurred.',
+            style: GoogleFonts.poppins(),
+          ),
+        ),
       );
     }
   }
@@ -126,41 +161,56 @@ class _ProfilePageState extends State<ProfilePage> {
   void _showPrivacyPolicy() {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text('Privacy Policy', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
-        content: SingleChildScrollView(
-          child: Text(
-            'Last Updated: 2025\n\n'
-            '1. Overview\n'
-            'ScanWiser respects your privacy. This Privacy Policy explains how we collect, use, and safeguard your information.\n\n'
-            '2. Data Collection\n'
-            '• Account Information: We collect your name and email address during registration.\n'
-            '• Usage Data: We may process data related to barcodes scanned to provide price comparisons.\n\n'
-            '3. Use of Information\n'
-            'We use data for authenticating users and providing product price comparisons.\n\n'
-            '4. Third-Party Services\n'
-            'We utilize Google Firebase for authentication and database storage.\n\n'
-            '5. Account Deletion\n'
-            'You can delete your account via Profile settings. Your data will be removed permanently.\n\n'
-            '6. Contact\n'
-            'For questions, please contact the development team.',
-            style: GoogleFonts.poppins(fontSize: 13, height: 1.5),
+      builder:
+          (ctx) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            title: Text(
+              'Privacy Policy',
+              style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+            ),
+            content: SingleChildScrollView(
+              child: Text(
+                'Last Updated: 2025\n\n'
+                '1. Overview\n'
+                'ScanWiser respects your privacy. This Privacy Policy explains how we collect, use, and safeguard your information.\n\n'
+                '2. Data Collection\n'
+                '• Account Information: We collect your name and email address during registration.\n'
+                '• Usage Data: We may process data related to barcodes scanned to provide price comparisons.\n\n'
+                '3. Use of Information\n'
+                'We use data for authenticating users and providing product price comparisons.\n\n'
+                '4. Third-Party Services\n'
+                'We utilize Google Firebase for authentication and database storage.\n\n'
+                '5. Account Deletion\n'
+                'You can delete your account via Profile settings. Your data will be removed permanently.\n\n'
+                '6. Contact\n'
+                'For questions, please contact the development team.',
+                style: GoogleFonts.poppins(fontSize: 13, height: 1.5),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text(
+                  'Close',
+                  style: GoogleFonts.poppins(
+                    color: _green,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('Close', style: GoogleFonts.poppins(color: _green, fontWeight: FontWeight.w600)),
-          ),
-        ],
-      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final name = _userData?['fullName']?.toString() ?? _userData?['name']?.toString() ?? 'User';
+    final name =
+        _userData?['fullName']?.toString() ??
+        _userData?['name']?.toString() ??
+        'User';
     final initial = name.isNotEmpty ? name[0].toUpperCase() : 'U';
     final email = _currentUser?.email ?? '';
 
@@ -172,94 +222,119 @@ class _ProfilePageState extends State<ProfilePage> {
         centerTitle: true,
         title: Text(
           'My Profile',
-          style: GoogleFonts.poppins(color: const Color(0xFF1A1A2E), fontWeight: FontWeight.w600, fontSize: 18),
+          style: GoogleFonts.poppins(
+            color: const Color(0xFF1A1A2E),
+            fontWeight: FontWeight.w600,
+            fontSize: 18,
+          ),
         ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFF1A1A2E), size: 18),
+          icon: const Icon(
+            Icons.arrow_back_ios_new,
+            color: Color(0xFF1A1A2E),
+            size: 18,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: _green))
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                children: [
-                  _ProfileCard(
-                    name: name,
-                    email: email,
-                    initial: initial,
-                    onEditTap: () async {
-                      final result = await Navigator.pushNamed(context, '/edit-profile');
-                      if (result == true) _fetchUserData();
-                    },
-                  ),
-                  const SizedBox(height: 24),
-                  _SectionLabel(label: 'Account'),
-                  _MenuTile(
-                    icon: Icons.lock_outline_rounded,
-                    title: 'Change Password',
-                    subtitle: 'Update your password',
-                    onTap: () => Navigator.pushNamed(context, '/change-password'),
-                  ),
-                  _MenuTile(
-                    icon: Icons.delete_outline_rounded,
-                    title: 'Delete Account',
-                    subtitle: 'Permanently remove your data',
-                    isDestructive: true,
-                    onTap: _deleteAccount,
-                  ),
-                  const SizedBox(height: 8),
-                  _SectionLabel(label: 'Delivery'),
-                  _MenuTile(
-                    icon: Icons.location_on_outlined,
-                    title: 'My Addresses',
-                    subtitle: 'Manage delivery addresses',
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const _AddressesPage()),
+      body:
+          _isLoading
+              ? const Center(child: CircularProgressIndicator(color: _green))
+              : SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    _ProfileCard(
+                      name: name,
+                      email: email,
+                      initial: initial,
+                      onEditTap: () async {
+                        final result = await Navigator.pushNamed(
+                          context,
+                          '/edit-profile',
+                        );
+                        if (result == true) _fetchUserData();
+                      },
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  _SectionLabel(label: 'Legal & About'),
-                  _MenuTile(
-                    icon: Icons.privacy_tip_outlined,
-                    title: 'Privacy Policy',
-                    subtitle: 'Terms & Conditions',
-                    onTap: _showPrivacyPolicy,
-                  ),
-                  _MenuTile(
-                    icon: Icons.info_outline_rounded,
-                    title: 'Version',
-                    subtitle: '1.0.0',
-                    showArrow: false,
-                  ),
-                  _MenuTile(
-                    icon: Icons.copyright_rounded,
-                    title: 'License',
-                    subtitle: '© 2025 ScanWiser. All rights reserved.',
-                    showArrow: false,
-                  ),
-                  const SizedBox(height: 28),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: _handleLogout,
-                      icon: const Icon(Icons.logout_rounded),
-                      label: Text('Log Out', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600)),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFFFEBEE),
-                        foregroundColor: Colors.red[700],
-                        elevation: 0,
-                        minimumSize: const Size(double.infinity, 56),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    const SizedBox(height: 24),
+                    _SectionLabel(label: 'Account'),
+                    _MenuTile(
+                      icon: Icons.lock_outline_rounded,
+                      title: 'Change Password',
+                      subtitle: 'Update your password',
+                      onTap:
+                          () =>
+                              Navigator.pushNamed(context, '/change-password'),
+                    ),
+                    _MenuTile(
+                      icon: Icons.delete_outline_rounded,
+                      title: 'Delete Account',
+                      subtitle: 'Permanently remove your data',
+                      isDestructive: true,
+                      onTap: _deleteAccount,
+                    ),
+                    const SizedBox(height: 8),
+                    _SectionLabel(label: 'Delivery'),
+                    _MenuTile(
+                      icon: Icons.location_on_outlined,
+                      title: 'My Addresses',
+                      subtitle: 'Manage delivery addresses',
+                      onTap:
+                          () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const _AddressesPage(),
+                            ),
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                    _SectionLabel(label: 'Legal & About'),
+                    _MenuTile(
+                      icon: Icons.privacy_tip_outlined,
+                      title: 'Privacy Policy',
+                      subtitle: 'Terms & Conditions',
+                      onTap: _showPrivacyPolicy,
+                    ),
+                    _MenuTile(
+                      icon: Icons.info_outline_rounded,
+                      title: 'Version',
+                      subtitle: '1.0.0',
+                      showArrow: false,
+                    ),
+                    _MenuTile(
+                      icon: Icons.copyright_rounded,
+                      title: 'License',
+                      subtitle: '© 2025 ScanWiser. All rights reserved.',
+                      showArrow: false,
+                    ),
+                    const SizedBox(height: 28),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: _handleLogout,
+                        icon: const Icon(Icons.logout_rounded),
+                        label: Text(
+                          'Log Out',
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFFFEBEE),
+                          foregroundColor: Colors.red[700],
+                          elevation: 0,
+                          minimumSize: const Size(double.infinity, 56),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 32),
-                ],
+                    const SizedBox(height: 32),
+                  ],
+                ),
               ),
-            ),
     );
   }
 }
@@ -308,7 +383,11 @@ class _ProfileCard extends StatelessWidget {
             child: Center(
               child: Text(
                 initial,
-                style: GoogleFonts.poppins(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
+                style: GoogleFonts.poppins(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
               ),
             ),
           ),
@@ -319,12 +398,19 @@ class _ProfileCard extends StatelessWidget {
               children: [
                 Text(
                   name,
-                  style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w700, color: const Color(0xFF1A1A2E)),
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF1A1A2E),
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   email,
-                  style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey[500]),
+                  style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    color: Colors.grey[500],
+                  ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ],
@@ -338,7 +424,11 @@ class _ProfileCard extends StatelessWidget {
                 color: const Color(0xFFE8F5E9),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(Icons.edit_outlined, color: Color(0xFF2E7D32), size: 20),
+              child: const Icon(
+                Icons.edit_outlined,
+                color: Color(0xFF2E7D32),
+                size: 20,
+              ),
             ),
           ),
         ],
@@ -397,7 +487,11 @@ class _MenuTile extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 8, offset: const Offset(0, 2)),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
         ],
       ),
       child: ListTile(
@@ -406,17 +500,30 @@ class _MenuTile extends StatelessWidget {
         leading: Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: isDestructive ? Colors.red.withValues(alpha: 0.08) : const Color(0xFFE8F5E9),
+            color:
+                isDestructive
+                    ? Colors.red.withValues(alpha: 0.08)
+                    : const Color(0xFFE8F5E9),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Icon(icon, color: color, size: 20),
         ),
         title: Text(
           title,
-          style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 15, color: isDestructive ? Colors.red : const Color(0xFF1A1A2E)),
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.w600,
+            fontSize: 15,
+            color: isDestructive ? Colors.red : const Color(0xFF1A1A2E),
+          ),
         ),
-        subtitle: Text(subtitle, style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[500])),
-        trailing: showArrow ? const Icon(Icons.chevron_right, color: Colors.grey) : null,
+        subtitle: Text(
+          subtitle,
+          style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[500]),
+        ),
+        trailing:
+            showArrow
+                ? const Icon(Icons.chevron_right, color: Colors.grey)
+                : null,
       ),
     );
   }
@@ -446,10 +553,11 @@ class _AddressesPageState extends State<_AddressesPage> {
       return;
     }
     try {
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(_user.uid)
-          .get();
+      final doc =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(_user.uid)
+              .get();
       if (doc.exists) {
         final addresses = doc.get('addresses') as List? ?? [];
         setState(() {
@@ -471,20 +579,18 @@ class _AddressesPageState extends State<_AddressesPage> {
       'address': address,
       'id': DateTime.now().millisecondsSinceEpoch.toString(),
     });
-    await FirebaseFirestore.instance
-        .collection('users')
-        .doc(_user.uid)
-        .update({'addresses': _addresses});
+    await FirebaseFirestore.instance.collection('users').doc(_user.uid).update({
+      'addresses': _addresses,
+    });
     setState(() {});
   }
 
   Future<void> _deleteAddress(int index) async {
     if (_user == null) return;
     _addresses.removeAt(index);
-    await FirebaseFirestore.instance
-        .collection('users')
-        .doc(_user.uid)
-        .update({'addresses': _addresses});
+    await FirebaseFirestore.instance.collection('users').doc(_user.uid).update({
+      'addresses': _addresses,
+    });
     setState(() {});
   }
 
@@ -494,50 +600,71 @@ class _AddressesPageState extends State<_AddressesPage> {
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text('Add Address', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: labelCtrl,
-              decoration: InputDecoration(
-                hintText: 'Home, Work, etc.',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              ),
+      builder:
+          (ctx) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: addressCtrl,
-              maxLines: 3,
-              decoration: InputDecoration(
-                hintText: 'Enter your address',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              ),
+            title: Text(
+              'Add Address',
+              style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
             ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('Cancel', style: GoogleFonts.poppins()),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: labelCtrl,
+                  decoration: InputDecoration(
+                    hintText: 'Home, Work, etc.',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: addressCtrl,
+                  maxLines: 3,
+                  decoration: InputDecoration(
+                    hintText: 'Enter your address',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text('Cancel', style: GoogleFonts.poppins()),
+              ),
+              TextButton(
+                onPressed: () {
+                  if (labelCtrl.text.isEmpty || addressCtrl.text.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Please fill all fields',
+                          style: GoogleFonts.poppins(),
+                        ),
+                      ),
+                    );
+                    return;
+                  }
+                  _saveAddress(labelCtrl.text, addressCtrl.text);
+                  Navigator.pop(ctx);
+                },
+                child: Text(
+                  'Add',
+                  style: GoogleFonts.poppins(
+                    color: const Color(0xFF2E7D32),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () {
-              if (labelCtrl.text.isEmpty || addressCtrl.text.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Please fill all fields', style: GoogleFonts.poppins())),
-                );
-                return;
-              }
-              _saveAddress(labelCtrl.text, addressCtrl.text);
-              Navigator.pop(ctx);
-            },
-            child: Text('Add', style: GoogleFonts.poppins(color: const Color(0xFF2E7D32), fontWeight: FontWeight.w600)),
-          ),
-        ],
-      ),
     );
   }
 
@@ -548,45 +675,85 @@ class _AddressesPageState extends State<_AddressesPage> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: Text('My Addresses', style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 18, color: const Color(0xFF1A1A2E))),
+        title: Text(
+          'My Addresses',
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.w600,
+            fontSize: 18,
+            color: const Color(0xFF1A1A2E),
+          ),
+        ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFF1A1A2E), size: 18),
+          icon: const Icon(
+            Icons.arrow_back_ios_new,
+            color: Color(0xFF1A1A2E),
+            size: 18,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFF2E7D32)))
-          : ListView.builder(
-              padding: const EdgeInsets.all(20),
-              itemCount: _addresses.length,
-              itemBuilder: (_, i) {
-                final addr = _addresses[i];
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8)],
-                  ),
-                  child: ListTile(
-                    leading: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFE8F5E9),
-                        shape: BoxShape.circle,
+      body:
+          _isLoading
+              ? const Center(
+                child: CircularProgressIndicator(color: Color(0xFF2E7D32)),
+              )
+              : ListView.builder(
+                padding: const EdgeInsets.all(20),
+                itemCount: _addresses.length,
+                itemBuilder: (_, i) {
+                  final addr = _addresses[i];
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.04),
+                          blurRadius: 8,
+                        ),
+                      ],
+                    ),
+                    child: ListTile(
+                      leading: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFE8F5E9),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.location_on,
+                          color: Color(0xFF2E7D32),
+                          size: 20,
+                        ),
                       ),
-                      child: const Icon(Icons.location_on, color: Color(0xFF2E7D32), size: 20),
+                      title: Text(
+                        addr['label'],
+                        style: GoogleFonts.poppins(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 15,
+                        ),
+                      ),
+                      subtitle: Text(
+                        addr['address'],
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          color: Colors.grey,
+                        ),
+                        maxLines: 2,
+                      ),
+                      trailing: IconButton(
+                        icon: const Icon(
+                          Icons.delete_outline,
+                          color: Colors.red,
+                          size: 20,
+                        ),
+                        onPressed: () => _deleteAddress(i),
+                      ),
                     ),
-                    title: Text(addr['label'], style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 15)),
-                    subtitle: Text(addr['address'], style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey), maxLines: 2),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
-                      onPressed: () => _deleteAddress(i),
-                    ),
-                  ),
-                );
-              },
-            ),
+                  );
+                },
+              ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showAddAddressDialog,
         backgroundColor: const Color(0xFF2E7D32),

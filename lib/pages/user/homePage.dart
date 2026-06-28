@@ -1,3 +1,4 @@
+// ignore_for_file: file_names
 
 import 'dart:async';
 import 'package:flutter/foundation.dart';
@@ -9,6 +10,7 @@ import 'package:grad_qr_project/pages/user/resultPage.dart';
 import 'package:grad_qr_project/services/notification_service.dart';
 import 'package:grad_qr_project/services/market_api_service.dart';
 import 'package:grad_qr_project/services/api_price_service.dart';
+import 'package:grad_qr_project/services/cart_service.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -23,12 +25,19 @@ class _HomePageState extends State<HomePage> {
   String _selectedCategory = "All";
   int _currentNavIndex = 0;
   Timer? _discountCheckTimer;
+  late Future<List<Map<String, dynamic>>> _productsFuture;
 
   @override
   void initState() {
     super.initState();
+    _productsFuture = ApiPriceService.getAllProducts();
+    cartService.addListener(_onCartChanged);
     _checkFavoritesForDiscounts();
     _startPeriodicDiscountCheck();
+  }
+
+  void _onCartChanged() {
+    if (mounted) setState(() {});
   }
 
   Future<String> _fetchUserName() async {
@@ -49,14 +58,23 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _onNavTapped(int index) {
-    if (index == _currentNavIndex) return;
+    if (index == 0) {
+      setState(() => _currentNavIndex = 0);
+      return;
+    }
     setState(() => _currentNavIndex = index);
     if (index == 1) {
-      Navigator.pushNamed(context, '/scan');
+      Navigator.pushNamed(context, '/scan').then((_) {
+        if (mounted) setState(() => _currentNavIndex = 0);
+      });
     } else if (index == 2) {
-      Navigator.pushNamed(context, '/favorites');
+      Navigator.pushNamed(context, '/favorites').then((_) {
+        if (mounted) setState(() => _currentNavIndex = 0);
+      });
     } else if (index == 3) {
-      Navigator.pushNamed(context, '/profile');
+      Navigator.pushNamed(context, '/profile').then((_) {
+        if (mounted) setState(() => _currentNavIndex = 0);
+      });
     }
   }
 
@@ -64,11 +82,12 @@ class _HomePageState extends State<HomePage> {
     if (user == null) return;
 
     try {
-      final favSnap = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user!.uid)
-          .collection('favorites')
-          .get();
+      final favSnap =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user!.uid)
+              .collection('favorites')
+              .get();
 
       if (favSnap.docs.isEmpty) return;
 
@@ -85,19 +104,24 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _checkDiscountAndNotify(
-      String barcode, String city, Map<String, dynamic> favData) async {
+    String barcode,
+    String city,
+    Map<String, dynamic> favData,
+  ) async {
     try {
       final results = await MarketApiService.searchProductInCity(barcode, city);
 
       for (final result in results) {
-        if (result.discountPrice != null && result.discountPrice! < result.price) {
-          final existingNotif = await FirebaseFirestore.instance
-              .collection('notifications')
-              .where('userId', isEqualTo: user!.uid)
-              .where('type', isEqualTo: 'discount_alert')
-              .where('barcode', isEqualTo: barcode)
-              .where('marketName', isEqualTo: result.marketName)
-              .get();
+        if (result.discountPrice != null &&
+            result.discountPrice! < result.price) {
+          final existingNotif =
+              await FirebaseFirestore.instance
+                  .collection('notifications')
+                  .where('userId', isEqualTo: user!.uid)
+                  .where('type', isEqualTo: 'discount_alert')
+                  .where('barcode', isEqualTo: barcode)
+                  .where('marketName', isEqualTo: result.marketName)
+                  .get();
 
           if (existingNotif.docs.isEmpty) {
             await NotificationService.sendDiscountNotification(
@@ -126,6 +150,7 @@ class _HomePageState extends State<HomePage> {
   void dispose() {
     _discountCheckTimer?.cancel();
     _searchController.dispose();
+    cartService.removeListener(_onCartChanged);
     super.dispose();
   }
 
@@ -307,7 +332,12 @@ class _HomePageState extends State<HomePage> {
                 final category = cats[index];
                 final isSelected = _selectedCategory == category;
                 return GestureDetector(
-                  onTap: () => setState(() => _selectedCategory = category),
+                  onTap: () => setState(() {
+                    _selectedCategory = category;
+                    _productsFuture = ApiPriceService.getAllProducts(
+                      category: category == "All" ? null : category,
+                    );
+                  }),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
                     margin: const EdgeInsets.only(right: 10),
@@ -317,9 +347,7 @@ class _HomePageState extends State<HomePage> {
                     ),
                     decoration: BoxDecoration(
                       color:
-                          isSelected
-                              ? const Color(0xFF2E7D32)
-                              : Colors.white,
+                          isSelected ? const Color(0xFF2E7D32) : Colors.white,
                       borderRadius: BorderRadius.circular(20),
                       boxShadow:
                           isSelected
@@ -381,6 +409,7 @@ class _HomePageState extends State<HomePage> {
               subtitle: 'Your items',
               color: const Color(0xFF2E7D32),
               onTap: () => Navigator.pushNamed(context, '/cart'),
+              badgeCount: cartService.items.fold<int>(0, (total, i) => total + i.quantity),
             ),
           ),
         ],
@@ -429,9 +458,7 @@ class _HomePageState extends State<HomePage> {
     return SliverPadding(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
       sliver: FutureBuilder<List<Map<String, dynamic>>>(
-        future: ApiPriceService.getAllProducts(
-          category: _selectedCategory == "All" ? null : _selectedCategory,
-        ),
+        future: _productsFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const SliverToBoxAdapter(
@@ -455,16 +482,28 @@ class _HomePageState extends State<HomePage> {
           }
 
           final products = snapshot.data ?? [];
-          debugPrint('Category: $_selectedCategory, Products count: ${products.length}');
+          debugPrint(
+            'Category: $_selectedCategory, Products count: ${products.length}',
+          );
           for (var i = 0; i < products.length && i < 5; i++) {
-            debugPrint('  [$i] ${products[i]['barcode']} - ${products[i]['productName']}');
+            debugPrint(
+              '  [$i] ${products[i]['barcode']} - ${products[i]['productName']}',
+            );
           }
           return SliverList(
             delegate: SliverChildBuilderDelegate((context, index) {
               final data = products[index];
               final barcode = data['barcode']?.toString() ?? '';
               return GestureDetector(
-                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ResultPage(barcode: barcode, productData: data))),
+                onTap:
+                    () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder:
+                            (_) =>
+                                ResultPage(barcode: barcode, productData: data),
+                      ),
+                    ),
                 child: ProductCard(data: data, barcode: barcode),
               );
             }, childCount: products.length),
@@ -572,6 +611,7 @@ class _QuickActionCard extends StatelessWidget {
   final String subtitle;
   final Color color;
   final VoidCallback onTap;
+  final int badgeCount;
 
   const _QuickActionCard({
     required this.icon,
@@ -579,6 +619,7 @@ class _QuickActionCard extends StatelessWidget {
     required this.subtitle,
     required this.color,
     required this.onTap,
+    this.badgeCount = 0,
   });
 
   @override
@@ -604,13 +645,40 @@ class _QuickActionCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, color: Colors.white, size: 24),
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icon, color: Colors.white, size: 24),
+                ),
+                if (badgeCount > 0)
+                  Positioned(
+                    top: -6,
+                    right: -6,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                      constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                      child: Text(
+                        '$badgeCount',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -812,10 +880,7 @@ class _AllProductsPageState extends State<AllProductsPage> {
               onChanged: (_) => setState(() {}),
               decoration: InputDecoration(
                 hintText: 'Search all products...',
-                prefixIcon: const Icon(
-                  Icons.search,
-                  color: Color(0xFF2E7D32),
-                ),
+                prefixIcon: const Icon(Icons.search, color: Color(0xFF2E7D32)),
                 suffixIcon:
                     _searchCtrl.text.isNotEmpty
                         ? IconButton(
@@ -829,9 +894,7 @@ class _AllProductsPageState extends State<AllProductsPage> {
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream:
-                  FirebaseFirestore.instance
-                      .collection('products')
-                      .snapshots(),
+                  FirebaseFirestore.instance.collection('products').snapshots(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
                   return const Center(child: CircularProgressIndicator());
