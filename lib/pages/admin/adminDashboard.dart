@@ -7,6 +7,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../services/market_api_service.dart';
 import '../../services/notification_service.dart';
 
@@ -800,6 +801,10 @@ class _OrdersState extends State<_Orders> {
 
     if (ok == true && reasonCtrl.text.trim().isNotEmpty) {
       final reason = reasonCtrl.text.trim();
+
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
+      final userEmail = userDoc.data()?['email'] as String? ?? '';
+
       await FirebaseFirestore.instance
           .collection('purchases')
           .doc(purchaseId)
@@ -811,7 +816,7 @@ class _OrdersState extends State<_Orders> {
       await FirebaseFirestore.instance.collection('cancellationLogs').add({
         'orderId': purchaseId,
         'userId': userId,
-        'userEmail': '',
+        'userEmail': userEmail,
         'productName': productName,
         'marketName': marketName,
         'reason': reason,
@@ -897,18 +902,25 @@ class _OrdersState extends State<_Orders> {
                     contentPadding: EdgeInsets.zero,
                     leading: CircleAvatar(
                       backgroundColor: const Color(0xFFE8F5E9),
-                      backgroundImage:
-                          (data['imageUrl'] as String?)?.isNotEmpty == true
-                              ? NetworkImage(data['imageUrl'] as String)
-                              : null,
-                      child:
-                          (data['imageUrl'] as String?)?.isEmpty != false
-                              ? const Icon(
+                      child: ClipOval(
+                        child: (data['imageUrl'] as String?)?.isNotEmpty == true
+                            ? CachedNetworkImage(
+                                imageUrl: data['imageUrl'] as String,
+                                width: 40,
+                                height: 40,
+                                fit: BoxFit.cover,
+                                errorWidget: (_, __, ___) => const Icon(
+                                  Icons.shopping_bag_rounded,
+                                  color: Color(0xFF2E7D32),
+                                  size: 20,
+                                ),
+                              )
+                            : const Icon(
                                 Icons.shopping_bag_rounded,
                                 color: Color(0xFF2E7D32),
                                 size: 20,
-                              )
-                              : null,
+                              ),
+                      ),
                     ),
                     title: Text(
                       data['productName']?.toString() ?? '',
@@ -1128,49 +1140,35 @@ class _CancellationLogs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        centerTitle: true,
-        title: Text(
-          'Cancellation Logs',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 18),
-        ),
-        elevation: 0,
-      ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream:
-            FirebaseFirestore.instance
-                .collection('cancellationLogs')
-                .snapshots(),
-        builder: (_, snap) {
-          if (snap.hasError) {
-            return Center(child: Text('Error: ${snap.error}'));
-          }
-          if (!snap.hasData) {
-            return const Center(
-              child: CircularProgressIndicator(color: Color(0xFF2E7D32)),
-            );
-          }
-          if (snap.data!.docs.isEmpty) {
-            return Center(
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('cancellationLogs')
+          .snapshots(),
+      builder: (_, snap) {
+        if (snap.hasError) {
+          return Padding(padding: const EdgeInsets.all(24), child: Text('Error: ${snap.error}'));
+        }
+        if (!snap.hasData) {
+          return const Padding(
+            padding: EdgeInsets.all(48),
+            child: Center(child: CircularProgressIndicator(color: Color(0xFF2E7D32))),
+          );
+        }
+        if (snap.data!.docs.isEmpty) {
+          return const Padding(
+            padding: EdgeInsets.all(48),
+            child: Center(
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.info_outline, size: 72, color: Colors.grey),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No cancellations',
-                    style: GoogleFonts.poppins(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                  Icon(Icons.info_outline, size: 72, color: Colors.grey),
+                  SizedBox(height: 16),
+                  Text('No cancellations yet', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
                 ],
               ),
-            );
-          }
+            ),
+          );
+        }
 
           final docs = snap.data!.docs.toList()
             ..sort((a, b) {
@@ -1182,6 +1180,8 @@ class _CancellationLogs extends StatelessWidget {
 
           return ListView.builder(
             padding: const EdgeInsets.all(16),
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
             itemCount: docs.length,
             itemBuilder: (_, i) {
               final log = docs[i].data() as Map<String, dynamic>;
@@ -1284,7 +1284,9 @@ class _CancellationLogs extends StatelessWidget {
                               ),
                             ),
                             Text(
-                              log['userEmail'] ?? 'N/A',
+                              (log['userEmail'] != null && (log['userEmail'] as String).isNotEmpty)
+                                  ? log['userEmail']
+                                  : (log['cancelledBy'] == 'admin' ? 'Cancelled by Admin' : 'N/A'),
                               style: GoogleFonts.poppins(fontSize: 12),
                             ),
                           ],
@@ -1349,8 +1351,7 @@ class _CancellationLogs extends StatelessWidget {
             },
           );
         },
-      ),
-    );
+      );
   }
 }
 
@@ -1810,6 +1811,13 @@ class _NotificationsState extends State<_Notifications> {
           });
         }
         await batch.commit();
+        await FirebaseFirestore.instance.collection('sentNotifications').add({
+          'title': title,
+          'body': body,
+          'sentTo': 'all',
+          'recipientCount': usersSnap.docs.length,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
       } else {
         await FirebaseFirestore.instance.collection('notifications').add({
           'userId': _selectedUserId,
@@ -1819,6 +1827,13 @@ class _NotificationsState extends State<_Notifications> {
           'read': false,
           'createdAt': FieldValue.serverTimestamp(),
           'sentBy': 'admin',
+        });
+        await FirebaseFirestore.instance.collection('sentNotifications').add({
+          'title': title,
+          'body': body,
+          'sentTo': _selectedUserEmail ?? _selectedUserId,
+          'recipientCount': 1,
+          'createdAt': FieldValue.serverTimestamp(),
         });
       }
 
@@ -2075,34 +2090,33 @@ class _NotificationsState extends State<_Notifications> {
               ),
               const SizedBox(height: 16),
               StreamBuilder<QuerySnapshot>(
-                stream:
-                    FirebaseFirestore.instance
-                        .collection('notifications')
-                        .orderBy('createdAt', descending: true)
-                        .snapshots(),
+                stream: FirebaseFirestore.instance
+                    .collection('sentNotifications')
+                    .snapshots(),
                 builder: (_, snap) {
                   if (!snap.hasData) {
-                    return const Center(
-                      child: CircularProgressIndicator(
-                        color: Color(0xFF2E7D32),
-                      ),
-                    );
+                    return const Center(child: CircularProgressIndicator(color: Color(0xFF2E7D32)));
                   }
                   if (snap.data!.docs.isEmpty) {
-                    return Text(
-                      'No notifications sent yet.',
-                      style: GoogleFonts.poppins(color: Colors.grey),
-                    );
+                    return Text('No notifications sent yet.', style: GoogleFonts.poppins(color: Colors.grey));
                   }
+                  final docs = snap.data!.docs.toList()
+                    ..sort((a, b) {
+                      final ta = (a.data() as Map)['createdAt'];
+                      final tb = (b.data() as Map)['createdAt'];
+                      if (ta is Timestamp && tb is Timestamp) return tb.compareTo(ta);
+                      return 0;
+                    });
                   return ListView.separated(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    itemCount: snap.data!.docs.length,
+                    itemCount: docs.length,
                     separatorBuilder: (_, __) => const Divider(height: 1),
                     itemBuilder: (_, i) {
-                      final data =
-                          snap.data!.docs[i].data() as Map<String, dynamic>;
+                      final data = docs[i].data() as Map<String, dynamic>;
                       final ts = data['createdAt'] as Timestamp?;
+                      final sentTo = data['sentTo'] ?? '';
+                      final count = data['recipientCount'] as int?;
                       return ListTile(
                         contentPadding: EdgeInsets.zero,
                         leading: Container(
@@ -2111,24 +2125,18 @@ class _NotificationsState extends State<_Notifications> {
                             color: const Color(0xFFE8F5E9),
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: const Icon(
-                            Icons.notifications_active_rounded,
-                            color: Color(0xFF2E7D32),
-                            size: 20,
-                          ),
+                          child: const Icon(Icons.notifications_active_rounded, color: Color(0xFF2E7D32), size: 20),
                         ),
-                        title: Text(
-                          data['title'] ?? '',
-                          style: GoogleFonts.poppins(
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        subtitle: Text(
-                          data['body'] ?? '',
-                          style: GoogleFonts.poppins(
-                            fontSize: 12,
-                            color: Colors.grey,
-                          ),
+                        title: Text(data['title'] ?? '', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(data['body'] ?? '', style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey)),
+                            Text(
+                              sentTo == 'all' ? 'Sent to all users${count != null ? ' ($count)' : ''}' : 'Sent to $sentTo',
+                              style: GoogleFonts.poppins(fontSize: 11, color: const Color(0xFF2E7D32)),
+                            ),
+                          ],
                         ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -2136,20 +2144,12 @@ class _NotificationsState extends State<_Notifications> {
                             if (ts != null)
                               Text(
                                 '${ts.toDate().day}/${ts.toDate().month}/${ts.toDate().year}',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 11,
-                                  color: Colors.grey,
-                                ),
+                                style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey),
                               ),
                             const SizedBox(width: 8),
                             IconButton(
-                              icon: const Icon(
-                                Icons.delete_outline,
-                                color: Colors.red,
-                                size: 20,
-                              ),
-                              onPressed:
-                                  () => snap.data!.docs[i].reference.delete(),
+                              icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                              onPressed: () => docs[i].reference.delete(),
                             ),
                           ],
                         ),

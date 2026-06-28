@@ -290,10 +290,23 @@ class AuthService {
             'createdAt': FieldValue.serverTimestamp(),
           });
         } else {
-          final existingName = userDoc.data()?['fullName']?.toString() ?? '';
+          final existingData = userDoc.data() ?? {};
+          final updates = <String, dynamic>{};
+
+          final existingName = existingData['fullName']?.toString() ?? '';
           final newName = appleFullName.isNotEmpty ? appleFullName : (user.displayName ?? '');
           if ((existingName.isEmpty || existingName == 'User') && newName.isNotEmpty) {
-            await _firestore.collection('users').doc(user.uid).update({'fullName': newName});
+            updates['fullName'] = newName;
+          }
+
+          final existingEmail = existingData['email']?.toString() ?? '';
+          final freshEmail = user.email ?? credential.email ?? '';
+          if (existingEmail.isEmpty && freshEmail.isNotEmpty) {
+            updates['email'] = freshEmail;
+          }
+
+          if (updates.isNotEmpty) {
+            await _firestore.collection('users').doc(user.uid).update(updates);
           }
         }
       }

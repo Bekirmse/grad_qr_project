@@ -198,38 +198,35 @@ class _LoginPageState extends State<LoginPage> {
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
+            final isSmall = constraints.maxHeight < 680;
             return SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 24.0),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: constraints.maxHeight + 20),
-                child: IntrinsicHeight(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const SizedBox(height: 40),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                      SizedBox(height: isSmall ? 20 : 40),
                       Align(
                         alignment: Alignment.center,
                         child: Container(
-                          height: 100,
-                          width: 100,
+                          height: isSmall ? 70 : 100,
+                          width: isSmall ? 70 : 100,
                           decoration: const BoxDecoration(color: Color(0xFFE8F5E9), shape: BoxShape.circle),
-                          child: const Icon(Icons.qr_code_scanner_rounded, size: 50, color: Color(0xFF2E7D32)),
+                          child: Icon(Icons.qr_code_scanner_rounded, size: isSmall ? 35 : 50, color: const Color(0xFF2E7D32)),
                         ),
                       ),
-                      const SizedBox(height: 30),
-                      const Text(
+                      SizedBox(height: isSmall ? 16 : 30),
+                      Text(
                         'Welcome to ScanWiser!',
                         textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Color(0xFF1B5E20), letterSpacing: -0.5),
+                        style: TextStyle(fontSize: isSmall ? 26 : 32, fontWeight: FontWeight.bold, color: const Color(0xFF1B5E20), letterSpacing: -0.5),
                       ),
                       const SizedBox(height: 8),
                       Text(
                         'Sign in to compare prices & save money',
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.grey[600], fontSize: 16),
+                        style: TextStyle(color: Colors.grey[600], fontSize: isSmall ? 13 : 16),
                       ),
-                      const SizedBox(height: 40),
+                      SizedBox(height: isSmall ? 20 : 40),
 
                       _buildInput(
                         _emailController,
@@ -366,8 +363,6 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                       const SizedBox(height: 40),
                     ],
-                  ),
-                ),
               ),
             );
           },
