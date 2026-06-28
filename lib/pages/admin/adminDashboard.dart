@@ -1175,7 +1175,8 @@ class _CancellationLogs extends StatelessWidget {
             itemCount: snap.data!.docs.length,
             itemBuilder: (_, i) {
               final log = snap.data!.docs[i].data() as Map<String, dynamic>;
-              final date = (log['cancelledAt'] as Timestamp).toDate();
+              final ts = log['cancelledAt'];
+              final date = ts is Timestamp ? ts.toDate() : DateTime.now();
 
               return Container(
                 margin: const EdgeInsets.only(bottom: 12),

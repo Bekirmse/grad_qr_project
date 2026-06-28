@@ -513,6 +513,12 @@ class OrdersPage extends StatelessWidget {
                                     }
                                     setSheet(() => isLoading = true);
                                     try {
+                                      final orderDoc = await FirebaseFirestore
+                                          .instance
+                                          .collection('purchases')
+                                          .doc(orderId)
+                                          .get();
+                                      final data = orderDoc.data() ?? {};
                                       await FirebaseFirestore.instance
                                           .collection('purchases')
                                           .doc(orderId)
@@ -529,17 +535,13 @@ class OrdersPage extends StatelessWidget {
                                           .add({
                                         'orderId': orderId,
                                         'userId': user?.uid,
-                                        'userEmail': user?.email,
+                                        'userEmail': user?.email ?? '',
+                                        'productName': data['productName'] ?? '',
+                                        'marketName': data['marketName'] ?? '',
                                         'reason': reasonCtrl.text.trim(),
-                                        'cancelledAt':
-                                            FieldValue.serverTimestamp(),
+                                        'cancelledAt': FieldValue.serverTimestamp(),
+                                        'cancelledBy': 'user',
                                       });
-                                      final orderDoc = await FirebaseFirestore
-                                          .instance
-                                          .collection('purchases')
-                                          .doc(orderId)
-                                          .get();
-                                      final data = orderDoc.data() ?? {};
                                       if (user != null) {
                                         await NotificationService
                                             .sendOrderCancelledNotification(
