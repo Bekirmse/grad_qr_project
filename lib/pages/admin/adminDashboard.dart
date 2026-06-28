@@ -1143,9 +1143,11 @@ class _CancellationLogs extends StatelessWidget {
         stream:
             FirebaseFirestore.instance
                 .collection('cancellationLogs')
-                .orderBy('cancelledAt', descending: true)
                 .snapshots(),
         builder: (_, snap) {
+          if (snap.hasError) {
+            return Center(child: Text('Error: ${snap.error}'));
+          }
           if (!snap.hasData) {
             return const Center(
               child: CircularProgressIndicator(color: Color(0xFF2E7D32)),
@@ -1170,11 +1172,19 @@ class _CancellationLogs extends StatelessWidget {
             );
           }
 
+          final docs = snap.data!.docs.toList()
+            ..sort((a, b) {
+              final ta = (a.data() as Map)['cancelledAt'];
+              final tb = (b.data() as Map)['cancelledAt'];
+              if (ta is Timestamp && tb is Timestamp) return tb.compareTo(ta);
+              return 0;
+            });
+
           return ListView.builder(
             padding: const EdgeInsets.all(16),
-            itemCount: snap.data!.docs.length,
+            itemCount: docs.length,
             itemBuilder: (_, i) {
-              final log = snap.data!.docs[i].data() as Map<String, dynamic>;
+              final log = docs[i].data() as Map<String, dynamic>;
               final ts = log['cancelledAt'];
               final date = ts is Timestamp ? ts.toDate() : DateTime.now();
 

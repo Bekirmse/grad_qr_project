@@ -14,6 +14,7 @@ class ResultPage extends StatefulWidget {
   final String city;
   final Map<String, dynamic>? productData;
   final String? preferredCity;
+  final bool fromScan;
 
   const ResultPage({
     super.key,
@@ -21,6 +22,7 @@ class ResultPage extends StatefulWidget {
     this.city = 'All',
     this.productData,
     this.preferredCity,
+    this.fromScan = false,
   });
 
   @override
@@ -36,6 +38,7 @@ class _ResultPageState extends State<ResultPage> {
   bool _isFavorite = false;
   bool _notFound = false;
   String _selectedCity = 'All';
+  bool _scanLogged = false;
 
   final _user = FirebaseAuth.instance.currentUser;
 
@@ -100,15 +103,18 @@ class _ResultPageState extends State<ResultPage> {
       }
 
       if (cityResults.isNotEmpty) {
-        FirebaseFirestore.instance.collection('scanLogs').add({
-          'barcode': cleanBarcode,
-          'productName': cityResults.first.name,
-          'imageUrl': cityResults.first.photoUrl,
-          'city': _selectedCity,
-          'userEmail': _user?.email ?? 'guest',
-          'userId': _user?.uid ?? '',
-          'timestamp': FieldValue.serverTimestamp(),
-        });
+        if (widget.fromScan && !_scanLogged) {
+          _scanLogged = true;
+          FirebaseFirestore.instance.collection('scanLogs').add({
+            'barcode': cleanBarcode,
+            'productName': cityResults.first.name,
+            'imageUrl': cityResults.first.photoUrl,
+            'city': _selectedCity,
+            'userEmail': _user?.email ?? 'guest',
+            'userId': _user?.uid ?? '',
+            'timestamp': FieldValue.serverTimestamp(),
+          });
+        }
 
         bool isFav = false;
         if (_user != null) {

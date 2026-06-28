@@ -131,7 +131,9 @@ class _NotificationsPageState extends State<NotificationsPage> {
                                             ? Colors.blue.shade50
                                             : type == 'order_cancelled'
                                                 ? const Color(0xFFFFEBEE)
-                                                : Colors.grey.shade100,
+                                                : type == 'admin_broadcast'
+                                                    ? const Color(0xFFF3E5F5)
+                                                    : Colors.grey.shade100,
                                     borderRadius: BorderRadius.circular(10),
                                   ),
                                   child: Icon(
@@ -143,7 +145,9 @@ class _NotificationsPageState extends State<NotificationsPage> {
                                                 ? Icons.local_shipping_rounded
                                                 : type == 'order_cancelled'
                                                     ? Icons.cancel_rounded
-                                                    : Icons.notifications_rounded,
+                                                    : type == 'admin_broadcast'
+                                                        ? Icons.campaign_rounded
+                                                        : Icons.notifications_rounded,
                                     color: type == 'discount_alert'
                                         ? Colors.green
                                         : type == 'order_received' ||
@@ -151,7 +155,9 @@ class _NotificationsPageState extends State<NotificationsPage> {
                                             ? Colors.blue
                                             : type == 'order_cancelled'
                                                 ? const Color(0xFFD32F2F)
-                                                : Colors.grey,
+                                                : type == 'admin_broadcast'
+                                                    ? const Color(0xFF7B1FA2)
+                                                    : Colors.grey,
                                     size: 20,
                                   ),
                                 ),
@@ -170,6 +176,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
                                             ? 'Order Received'
                                             : type == 'order_preparing'
                                             ? 'Order Preparing'
+                                            : type == 'admin_broadcast'
+                                            ? (n['title'] ?? 'Notification')
                                             : 'Notification',
                                         style: GoogleFonts.poppins(
                                           fontWeight: FontWeight.w600,
@@ -179,14 +187,23 @@ class _NotificationsPageState extends State<NotificationsPage> {
                                               : type == 'discount_alert'
                                                   ? Colors.green
                                                   : type == 'order_received' ||
-                                                          type ==
-                                                              'order_preparing'
+                                                          type == 'order_preparing'
                                                       ? Colors.blue[700]
-                                                      : Colors.grey[700],
+                                                      : const Color(0xFF1A1A2E),
                                         ),
                                       ),
                                       const SizedBox(height: 4),
-                                      if (type == 'order_cancelled') ...[
+                                      if (type == 'admin_broadcast') ...[
+                                        if ((n['body'] ?? '').toString().isNotEmpty)
+                                          Text(
+                                            n['body'],
+                                            style: GoogleFonts.poppins(
+                                              fontSize: 13,
+                                              color: Colors.grey[700],
+                                              height: 1.4,
+                                            ),
+                                          ),
+                                      ] else if (type == 'order_cancelled') ...[
                                         Text(
                                           '${n['productName'] ?? ''} · ${n['marketName'] ?? ''}',
                                           style: GoogleFonts.poppins(

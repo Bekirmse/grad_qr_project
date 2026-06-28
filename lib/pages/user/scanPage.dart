@@ -82,7 +82,7 @@ class _ScanPageState extends State<ScanPage> with TickerProviderStateMixin {
       if (!mounted) return;
       await Navigator.push(
         context,
-        _createRoute(ResultPage(barcode: scannedCode.trim())),
+        _createRoute(ResultPage(barcode: scannedCode.trim(), fromScan: true)),
       );
     } finally {
       if (mounted) {
